@@ -67,13 +67,14 @@ better than a prompt you'd click through anyway.
 
 ## Projects
 
-Click **+ Project** to make one — give it a name and a color. Click a
+Click **+ Project** to open the project dialog — give it a name, an optional
+one-line description, and a color from the eight presets or the picker. Click a
 project's tab at the top to filter the board down to just its tasks; click
 **All** to see everything again. If you add a task while filtered to a
 project, it's assigned to that project automatically.
 
-To delete a project, open the project list and click **Del**. Its tasks
-aren't deleted — they just lose the project label.
+The dialog also lists every project you already have. Click **Del** to remove
+one — its tasks aren't deleted, they just lose the project label.
 
 ## Due dates, priority, notes
 

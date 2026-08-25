@@ -7,9 +7,10 @@
 window.Docket = window.Docket || {};
 
 (function () {
-  // v2 adds notes, recurrence and order. Nothing was removed or reshaped, so
-  // migrate() only has to fill defaults — a v1 file loses nothing.
-  const SCHEMA_VERSION = 2;
+  // v2 adds notes, recurrence and order. v3 adds project.description.
+  // Nothing was removed or reshaped at either step, so migrate() only has to
+  // fill defaults — a v1 or v2 file loses nothing.
+  const SCHEMA_VERSION = 3;
 
   function uuid() {
     return crypto.randomUUID();
@@ -55,9 +56,16 @@ window.Docket = window.Docket || {};
       subtasks: [],
       ...t,
     }));
+    // A v1/v2 project has no description; spreading the stored project last
+    // means an existing description is never overwritten by the default.
+    const projects = (data.projects || []).map((p) => ({
+      description: "",
+      color: "#E61919",
+      ...p,
+    }));
     return {
       schemaVersion: SCHEMA_VERSION,
-      projects: data.projects || [],
+      projects,
       tasks,
     };
   }
@@ -67,6 +75,7 @@ window.Docket = window.Docket || {};
       {
         id: uuid(),
         name: "",
+        description: "",
         color: "#E61919",
         createdAt: nowIso(),
       },

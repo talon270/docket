@@ -31,7 +31,7 @@
      picking a number bigger than whatever was there before. */
   --z-raised: 2;      /* a card lifted on hover */
   --z-sticky: 5;      /* sticky column headers */
-  --z-popover: 30;    /* project popover */
+  --z-popover: 30;    /* free slot between sticky and modal */
   --z-modal: 60;      /* task detail */
   --z-scanlines: 100; /* CRT overlay, above content, below feedback */
   --z-toast: 200;

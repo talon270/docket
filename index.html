@@ -72,28 +72,18 @@
     </button>
   </header>
 
-  <div class="project-bar-wrap">
-    <nav class="project-bar">
-      <div id="project-tabs" style="display:flex"></div>
+  <nav class="project-bar">
+    <div id="project-tabs" style="display:flex"></div>
 
-      <div class="search-box">
-        <span class="search-icon" aria-hidden="true">⌕</span>
-        <input type="search" id="search-input" placeholder="SEARCH TITLES AND NOTES" autocomplete="off" aria-label="Search tasks">
-        <span class="search-count" id="search-count" hidden></span>
-        <button type="button" id="search-clear" hidden aria-label="Clear search">×</button>
-      </div>
-
-      <button id="new-project-btn">+ Project</button>
-    </nav>
-    <div id="project-popover" class="popover" hidden>
-      <div id="project-popover-list"></div>
-      <div class="popover-form">
-        <input type="text" id="new-project-name" placeholder="NAME">
-        <input type="color" id="new-project-color" value="#E61919">
-        <button id="project-popover-add">Add</button>
-      </div>
+    <div class="search-box">
+      <span class="search-icon" aria-hidden="true">⌕</span>
+      <input type="search" id="search-input" placeholder="SEARCH TITLES AND NOTES" autocomplete="off" aria-label="Search tasks">
+      <span class="search-count" id="search-count" hidden></span>
+      <button type="button" id="search-clear" hidden aria-label="Clear search">×</button>
     </div>
-  </div>
+
+    <button id="new-project-btn">+ Project</button>
+  </nav>
 
   <div class="status-rail">
     <div id="sync-strip" class="sync-strip" data-status="no-file">Local only</div>
@@ -167,6 +157,44 @@
       <button id="card-modal-close" aria-label="Close">&times;</button>
     </div>
     <div id="card-modal-body" class="modal-body"></div>
+  </div>
+</div>
+
+<div id="project-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-label="Projects">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Project / new</span>
+      <button id="project-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <label>NAME
+        <input type="text" id="new-project-name" placeholder="ASHOKA" autocomplete="off" maxlength="40">
+      </label>
+
+      <label>
+        <span class="field-head">DESCRIPTION <span class="field-note">OPTIONAL</span></span>
+        <input type="text" id="new-project-desc" placeholder="WHAT THIS PROJECT COVERS" autocomplete="off" maxlength="120">
+      </label>
+
+      <label>COLOUR
+        <div class="colour-row">
+          <div class="swatch-picker" id="project-swatches"></div>
+          <input type="color" id="new-project-color" value="#E61919" aria-label="Custom colour">
+        </div>
+      </label>
+
+      <p class="modal-error" id="project-modal-error" hidden></p>
+
+      <div class="modal-actions">
+        <span class="field-note">Tasks keep their project until you delete it</span>
+        <button type="button" id="project-modal-add" class="btn-primary">Add project</button>
+      </div>
+
+      <div class="project-list-block">
+        <div class="modal-subhead">Existing projects</div>
+        <div id="project-modal-list"></div>
+      </div>
+    </div>
   </div>
 </div>
 

@@ -35,7 +35,8 @@
       "tm-active", "tm-done", "tm-archived", "tm-date",
       "project-tabs", "quick-add-input", "sync-strip", "reconnect-banner",
       "view-board-btn", "view-archive-btn", "theme-toggle", "theme-label", "new-project-btn",
-      "project-popover", "project-popover-list", "new-project-name", "new-project-color",
+      "project-modal", "project-modal-list", "project-modal-error", "project-swatches",
+      "new-project-name", "new-project-desc", "new-project-color",
       "card-modal", "card-modal-body", "notif-banner", "notif-enable-btn",
       "export-btn", "import-btn", "import-file-input", "toast",
       "view-agenda-btn", "search-input", "search-clear", "search-count",
@@ -588,15 +589,24 @@
     });
   }
 
-  function renderProjectPopover() {
-    const list = els["project-popover-list"];
+  function renderProjectModalList() {
+    const list = els["project-modal-list"];
     list.innerHTML = "";
+    if (!state.data.projects.length) {
+      const empty = document.createElement("p");
+      empty.className = "project-empty";
+      empty.textContent = "None yet — the board shows every task until you add one.";
+      list.appendChild(empty);
+      return;
+    }
     state.data.projects.forEach((p) => {
       const row = document.createElement("div");
-      row.className = "popover-row";
+      row.className = "project-row";
       row.innerHTML = `
         <span class="swatch" style="background:${p.color}"></span>
-        <span class="popover-name">${escapeHtml(p.name)}</span>
+        <span class="project-name">${escapeHtml(p.name)}${
+          p.description ? `<span class="project-desc">${escapeHtml(p.description)}</span>` : ""
+        }</span>
         <button class="btn-icon" data-action="delete" data-id="${p.id}">DEL</button>
       `;
       row.querySelector('[data-action="delete"]').addEventListener("click", () => deleteProject(p.id));
@@ -873,7 +883,7 @@
       d.projects = d.projects.filter((p) => p.id !== id);
     });
     if (state.activeProjectId === id) state.activeProjectId = "all";
-    renderProjectPopover();
+    renderProjectModalList();
   }
 
   // ---- wiring ---------------------------------------------------------------
@@ -919,7 +929,10 @@
         e.preventDefault();
         input.focus();
       }
-      if (e.key === "Escape") closeModal();
+      if (e.key === "Escape") {
+        closeModal();
+        closeProjectModal();
+      }
     });
   }
 
@@ -1078,21 +1091,107 @@
     });
   }
 
+  // Eight presets covering the hues that stay distinguishable as a 3px tab
+  // underline in both themes. The colour input stays for anything else.
+  const PROJECT_SWATCHES = [
+    "#E61919", "#E67819", "#E6C019", "#3BA55D",
+    "#19B8B0", "#2F81F7", "#A371F7", "#8B8B8B",
+  ];
+
+  function setProjectColour(hex) {
+    els["new-project-color"].value = hex;
+    els["project-swatches"].querySelectorAll(".swatch-btn").forEach((b) => {
+      b.setAttribute("aria-pressed", String(b.dataset.hex.toLowerCase() === hex.toLowerCase()));
+    });
+  }
+
+  function renderProjectSwatches() {
+    const wrap = els["project-swatches"];
+    wrap.innerHTML = "";
+    PROJECT_SWATCHES.forEach((hex) => {
+      const b = document.createElement("button");
+      b.type = "button";
+      b.className = "swatch-btn";
+      b.dataset.hex = hex;
+      b.style.background = hex;
+      b.setAttribute("aria-label", `Colour ${hex}`);
+      b.setAttribute("aria-pressed", "false");
+      b.addEventListener("click", () => setProjectColour(hex));
+      wrap.appendChild(b);
+    });
+  }
+
+  function projectError(msg) {
+    const el = els["project-modal-error"];
+    el.textContent = msg || "";
+    el.hidden = !msg;
+  }
+
+  function openProjectModal() {
+    els["new-project-name"].value = "";
+    els["new-project-desc"].value = "";
+    setProjectColour(PROJECT_SWATCHES[0]);
+    projectError("");
+    renderProjectModalList();
+    els["project-modal"].hidden = false;
+    els["new-project-name"].focus();
+  }
+
+  function closeProjectModal() {
+    els["project-modal"].hidden = true;
+  }
+
+  function submitProject() {
+    const name = els["new-project-name"].value.trim();
+    // Inline message, never alert() — a typo should not cost a modal dismiss.
+    if (!name) {
+      projectError("Give the project a name.");
+      els["new-project-name"].focus();
+      return;
+    }
+    const clash = state.data.projects.some((p) => p.name.toLowerCase() === name.toLowerCase());
+    if (clash) {
+      projectError(`A project called "${name}" already exists.`);
+      els["new-project-name"].focus();
+      return;
+    }
+    const description = els["new-project-desc"].value.trim();
+    const color = els["new-project-color"].value;
+    mutate((d) => {
+      d.projects.push(makeProject({ name, description, color }));
+    });
+    els["new-project-name"].value = "";
+    els["new-project-desc"].value = "";
+    projectError("");
+    renderProjectModalList();
+    showToast(`Project "${name}" added`);
+    els["new-project-name"].focus();
+  }
+
   function wireProjects() {
-    els["new-project-btn"].addEventListener("click", () => {
-      els["project-popover"].hidden = !els["project-popover"].hidden;
-      renderProjectPopover();
+    renderProjectSwatches();
+    els["new-project-btn"].addEventListener("click", openProjectModal);
+    document.getElementById("project-modal-close").addEventListener("click", closeProjectModal);
+    document.getElementById("project-modal-add").addEventListener("click", submitProject);
+
+    // Click the backdrop to dismiss, matching the task modal.
+    els["project-modal"].addEventListener("click", (e) => {
+      if (e.target === els["project-modal"]) closeProjectModal();
     });
-    document.getElementById("project-popover-add").addEventListener("click", () => {
-      const name = els["new-project-name"].value.trim();
-      if (!name) return;
-      const color = els["new-project-color"].value;
-      mutate((d) => {
-        d.projects.push(makeProject({ name, color }));
+
+    // Enter anywhere in the two text fields submits.
+    [els["new-project-name"], els["new-project-desc"]].forEach((input) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          submitProject();
+        }
       });
-      els["new-project-name"].value = "";
-      renderProjectPopover();
     });
+
+    // A hand-picked colour clears the preset highlight rather than lying
+    // about which swatch is active.
+    els["new-project-color"].addEventListener("input", () => setProjectColour(els["new-project-color"].value));
   }
 
   function wireModal() {

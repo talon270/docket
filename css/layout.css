@@ -149,10 +149,6 @@
 
 /* ---- project tabs ----------------------------------------------------- */
 
-.project-bar-wrap {
-  position: relative;
-}
-
 .project-bar {
   display: flex;
   align-items: stretch;
@@ -192,37 +188,7 @@
 }
 #new-project-btn:hover { background: var(--accent); color: #fff; }
 
-.popover {
-  position: absolute;
-  right: clamp(1rem, 3vw, 2.25rem);
-  top: 100%;
-  z-index: var(--z-popover);
-  background: var(--bg);
-  border: 2px solid var(--border);
-  box-shadow: 6px 6px 0 var(--shadow-hard);
-  padding: 1rem;
-  width: 280px;
-}
-.popover-row {
-  display: grid;
-  grid-template-columns: 12px 1fr auto;
-  align-items: center;
-  gap: 0.6rem;
-  padding: 0.4rem 0;
-  font-size: 0.7rem;
-  border-bottom: 1px solid var(--border-hair);
-}
 .swatch { width: 12px; height: 12px; display: inline-block; }
-.popover-form {
-  display: grid;
-  grid-template-columns: 1fr auto auto;
-  gap: 0.5rem;
-  margin-top: 0.85rem;
-  padding-top: 0.85rem;
-  border-top: 2px solid var(--border);
-}
-.popover-form input[type="text"] { padding: 0.4rem; font-size: 0.7rem; }
-.popover-form input[type="color"] { width: 34px; padding: 0; border: 1px solid var(--border); }
 .btn-icon { font-size: 0.58rem; padding: 0.22rem 0.45rem; }
 
 /* ---- status line: sync + banners, all on one thin rail ---------------- */
@@ -747,6 +713,77 @@
   font-weight: 700;
 }
 .btn-primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+/* ---- project modal -------------------------------------------------------- */
+
+/* A modal, not a dropdown: the old popover was absolutely positioned inside
+   the horizontally-scrolling project bar, so overflow clipped it out of sight.
+   Centred overlay has no containing block to be clipped by. */
+
+.field-head { display: flex; align-items: baseline; gap: 0.45rem; }
+
+.field-note {
+  font-size: 0.52rem;
+  letter-spacing: 0.1em;
+  color: var(--fg-dim);
+  text-transform: uppercase;
+}
+
+.colour-row {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  flex-wrap: wrap;
+}
+.swatch-picker { display: flex; gap: 0.4rem; flex-wrap: wrap; }
+.swatch-btn {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--border-hair);
+  cursor: pointer;
+}
+.swatch-btn[aria-pressed="true"] { border-color: var(--fg); box-shadow: 0 0 0 2px var(--bg) inset; }
+.colour-row input[type="color"] {
+  width: 44px;
+  height: 26px;
+  padding: 0;
+  border: 2px solid var(--border-hair);
+}
+
+.modal-error {
+  font-size: 0.62rem;
+  color: var(--accent);
+  border-left: 3px solid var(--accent);
+  padding-left: 0.6rem;
+  margin: 0;
+}
+
+.project-list-block { border-top: 2px solid var(--border); padding-top: 0.9rem; }
+.modal-subhead {
+  font-size: 0.55rem;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--fg-dim);
+  margin-bottom: 0.5rem;
+}
+.project-row {
+  display: grid;
+  grid-template-columns: 14px 1fr auto;
+  align-items: center;
+  gap: 0.7rem;
+  padding: 0.5rem 0;
+  border-bottom: 1px solid var(--border-hair);
+}
+.project-row:last-child { border-bottom: none; }
+.project-row .project-name { font-size: 0.78rem; }
+.project-row .project-desc {
+  display: block;
+  font-size: 0.6rem;
+  color: var(--fg-dim);
+  margin-top: 0.15rem;
+}
+.project-empty { font-size: 0.66rem; color: var(--fg-dim); }
 
 /* ---- toast ---------------------------------------------------------------- */
 
