@@ -29,8 +29,11 @@
   function cacheEls() {
     [
       "board", "col-todo", "col-doing", "col-done", "archive-list",
+      "body-todo", "body-doing", "body-done",
+      "count-todo", "count-doing", "count-done",
+      "tm-active", "tm-done", "tm-archived", "tm-date",
       "project-tabs", "quick-add-input", "sync-strip", "reconnect-banner",
-      "view-board-btn", "view-archive-btn", "theme-toggle", "new-project-btn",
+      "view-board-btn", "view-archive-btn", "theme-toggle", "theme-label", "new-project-btn",
       "project-popover", "project-popover-list", "new-project-name", "new-project-color",
       "card-modal", "card-modal-body", "notif-banner", "notif-enable-btn",
       "export-btn", "import-btn", "import-file-input", "toast",
@@ -82,57 +85,105 @@
     return state.data.projects.find((p) => p.id === id) || null;
   }
 
+  // Local-time YYYY-MM-DD. Never toISOString() — that is UTC and would call a
+  // task overdue up to a day early or late depending on the timezone.
+  function todayKey() {
+    const d = new Date();
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  }
+
+  function isOverdue(task) {
+    if (!task.dueDate || task.status === "done") return false;
+    const today = todayKey();
+    if (task.dueDate < today) return true;
+    if (task.dueDate > today) return false;
+    if (!task.dueTime) return false; // due today, date-only: the rest of today still counts
+    return new Date(`${task.dueDate}T${task.dueTime}:00`).getTime() < Date.now();
+  }
+
   function cardEl(task) {
     const card = document.createElement("div");
     card.className = "card";
     card.draggable = true;
     card.dataset.id = task.id;
-    card.style.setProperty("--accent", (projectById(task.projectId) || {}).color || "var(--fg)");
+    // Scoped to --proj, never --accent: overriding --accent here would repaint
+    // every accent-coloured child (the HIGH pill, the overdue tag) in the
+    // project's colour, which would misreport priority as a project.
+    card.style.setProperty("--proj", (projectById(task.projectId) || {}).color || "var(--fg)");
 
     const doneSubtasks = task.subtasks.filter((s) => s.done).length;
     const proj = projectById(task.projectId);
+    const overdue = isOverdue(task);
 
     card.innerHTML = `
       <div class="card-top">
         <span class="pill pill-${task.priority}">${task.priority}</span>
-        ${proj ? `<span class="pill pill-project" style="border-color:${proj.color}">${proj.name}</span>` : ""}
+        ${proj ? `<span class="pill pill-project" style="border-left-color:${proj.color}">${escapeHtml(proj.name)}</span>` : ""}
+        ${overdue ? `<span class="pill pill-overdue">Overdue</span>` : ""}
       </div>
       <div class="card-title">${escapeHtml(task.title)}</div>
       <div class="card-meta">
-        ${task.dueDate ? `<span>DUE ${task.dueDate}${task.dueTime ? " " + task.dueTime : ""}</span>` : ""}
-        ${task.subtasks.length ? `<span>[${doneSubtasks}/${task.subtasks.length}]</span>` : ""}
+        ${task.dueDate ? `<span class="${overdue ? "overdue" : ""}">${task.dueDate}${task.dueTime ? " · " + task.dueTime : ""}</span>` : ""}
+        ${task.subtasks.length ? `<span>${doneSubtasks}/${task.subtasks.length} done</span>` : ""}
       </div>
+      ${
+        task.subtasks.length
+          ? `<div class="card-progress"><i style="width:${Math.round((doneSubtasks / task.subtasks.length) * 100)}%"></i></div>`
+          : ""
+      }
     `;
 
     card.addEventListener("dragstart", (e) => {
       e.dataTransfer.setData("text/plain", task.id);
       card.classList.add("dragging");
     });
-    card.addEventListener("dragend", () => card.classList.remove("dragging"));
+    card.addEventListener("dragend", () => {
+      card.classList.remove("dragging");
+      document.querySelectorAll(".drop-target").forEach((c) => c.classList.remove("drop-target"));
+    });
     card.addEventListener("click", () => openCardModal(task.id));
 
     return card;
   }
 
-  function renderColumn(colEl, status) {
-    colEl.innerHTML = "";
+  const EMPTY_COPY = {
+    todo: { big: "Nothing queued", small: "Press N to capture a task" },
+    doing: { big: "Nothing started", small: "Drag a card here when you pick it up" },
+    done: { big: "Nothing finished", small: "Completed cards archive after 7 days" },
+  };
+
+  // Renders into .column-body, never the <section> — the section also holds
+  // the sticky header, and wiping it there deletes the column label.
+  function renderColumn(bodyEl, countEl, status) {
+    bodyEl.innerHTML = "";
     const tasks = visibleTasks()
       .filter((t) => t.status === status)
       .sort((a, b) => priorityRank(a.priority) - priorityRank(b.priority) || (a.dueDate || "9999").localeCompare(b.dueDate || "9999"));
+
+    countEl.textContent = String(tasks.length).padStart(2, "0");
+
     if (!tasks.length) {
       const empty = document.createElement("div");
       empty.className = "empty-state";
-      empty.textContent = "// EMPTY";
-      colEl.appendChild(empty);
+      empty.innerHTML = `${EMPTY_COPY[status].big}<small>${EMPTY_COPY[status].small}</small>`;
+      bodyEl.appendChild(empty);
       return;
     }
-    tasks.forEach((t) => colEl.appendChild(cardEl(t)));
+    tasks.forEach((t) => bodyEl.appendChild(cardEl(t)));
   }
 
   function renderBoard() {
-    renderColumn(els["col-todo"], "todo");
-    renderColumn(els["col-doing"], "doing");
-    renderColumn(els["col-done"], "done");
+    renderColumn(els["body-todo"], els["count-todo"], "todo");
+    renderColumn(els["body-doing"], els["count-doing"], "doing");
+    renderColumn(els["body-done"], els["count-done"], "done");
+  }
+
+  function renderTelemetry() {
+    const live = state.data.tasks.filter((t) => !t.archivedAt);
+    els["tm-active"].textContent = live.filter((t) => t.status !== "done").length;
+    els["tm-done"].textContent = live.filter((t) => t.status === "done").length;
+    els["tm-archived"].textContent = state.data.tasks.filter((t) => t.archivedAt).length;
+    els["tm-date"].textContent = todayKey();
   }
 
   function renderArchive() {
@@ -142,8 +193,10 @@
       .filter((t) => t.archivedAt)
       .sort((a, b) => b.archivedAt.localeCompare(a.archivedAt));
 
+    renderArchiveRail(archived);
+
     if (!archived.length) {
-      list.innerHTML = `<div class="empty-state">// NO ARCHIVED TASKS</div>`;
+      list.innerHTML = `<div class="empty-state">Archive is empty<small>Done cards move here 7 days after completion</small></div>`;
       return;
     }
 
@@ -157,7 +210,7 @@
     for (const [week, tasks] of groups) {
       const section = document.createElement("div");
       section.className = "archive-group";
-      section.innerHTML = `<div class="archive-week">[ ${week} ]</div>`;
+      section.innerHTML = `<div class="archive-week">${week}<em>${tasks.length} task${tasks.length === 1 ? "" : "s"}</em></div>`;
       const rows = document.createElement("div");
       rows.className = "archive-rows";
       tasks.forEach((t) => {
@@ -165,7 +218,7 @@
         row.className = "archive-row";
         row.innerHTML = `
           <span class="archive-title">${escapeHtml(t.title)}</span>
-          <button class="btn-restore" data-id="${t.id}">RESTORE ///</button>
+          <button class="btn-restore" data-id="${t.id}">Restore</button>
         `;
         row.querySelector(".btn-restore").addEventListener("click", () => {
           mutate((d) => {
@@ -179,6 +232,114 @@
       section.appendChild(rows);
       list.appendChild(section);
     }
+  }
+
+  // Throughput figures for the archive rail. Every number here is measured
+  // from stored timestamps, not estimated — createdAt and doneAt are both
+  // written at the moment the event happened, so "days to done" is exact.
+  // Tasks archived without a doneAt (imported from an older file) are
+  // excluded from the duration figures and the sample count says so.
+  function archiveStats(archived) {
+    // A doneAt earlier than createdAt is impossible and can only arrive from a
+    // hand-edited or corrupt import. Drop those rather than rendering a
+    // negative span as a plausible "1h" — the sample line below reports the
+    // shortfall, so the figure never overstates what it measured.
+    const timed = archived.filter(
+      (t) => t.doneAt && t.createdAt && new Date(t.doneAt) >= new Date(t.createdAt)
+    );
+    const days = timed.map((t) => (new Date(t.doneAt) - new Date(t.createdAt)) / 86400000);
+
+    const byProject = new Map();
+    for (const t of archived) {
+      const key = t.projectId || "__none";
+      byProject.set(key, (byProject.get(key) || 0) + 1);
+    }
+
+    const byWeek = new Map();
+    for (const t of archived) {
+      const w = isoWeekLabel(t.archivedAt);
+      byWeek.set(w, (byWeek.get(w) || 0) + 1);
+    }
+    let busiest = null;
+    for (const [w, n] of byWeek) if (!busiest || n > busiest[1]) busiest = [w, n];
+
+    return {
+      total: archived.length,
+      sample: timed.length,
+      avgDays: days.length ? days.reduce((a, b) => a + b, 0) / days.length : null,
+      fastest: days.length ? Math.min(...days) : null,
+      slowest: days.length ? Math.max(...days) : null,
+      byProject: [...byProject.entries()].sort((a, b) => b[1] - a[1]),
+      busiest,
+      weeks: byWeek.size,
+    };
+  }
+
+  function fmtDays(d) {
+    if (d === null) return "—";
+    if (d < 1) return `${Math.max(1, Math.round(d * 24))}h`;
+    return `${d < 10 ? d.toFixed(1) : Math.round(d)}d`;
+  }
+
+  function renderArchiveRail(archived) {
+    const rail = document.getElementById("archive-rail");
+    if (!archived.length) {
+      rail.innerHTML = `
+        <div class="rail-title">Throughput</div>
+        <div class="rail-empty">Nothing archived yet. Cards move here automatically 7 days after they are marked done, and these figures fill in from their own timestamps.</div>
+      `;
+      return;
+    }
+
+    const s = archiveStats(archived);
+    const maxProj = Math.max(...s.byProject.map((p) => p[1]));
+
+    rail.innerHTML = `
+      <div class="rail-title">Throughput</div>
+
+      <div class="rail-figure">
+        <b>${fmtDays(s.avgDays)}</b>
+        <span>Average time to done</span>
+        <em>${s.sample} of ${s.total} archived task${s.total === 1 ? "" : "s"} carried both timestamps</em>
+      </div>
+
+      <div class="rail-grid">
+        <div class="rail-figure">
+          <b>${fmtDays(s.fastest)}</b>
+          <span>Fastest</span>
+        </div>
+        <div class="rail-figure">
+          <b>${fmtDays(s.slowest)}</b>
+          <span>Slowest</span>
+        </div>
+      </div>
+
+      <div>
+        <div class="rail-title" style="margin-bottom:0.85rem">By project</div>
+        <div class="rail-rows">
+          ${s.byProject
+            .map(([id, n]) => {
+              const proj = projectById(id);
+              const color = proj ? proj.color : "var(--fg-dim)";
+              const name = proj ? escapeHtml(proj.name) : "No project";
+              return `
+                <div class="rail-row">
+                  <span class="swatch" style="background:${color}"></span>
+                  <span>${name}</span>
+                  <b>${n}</b>
+                  <span class="rail-bar"><i style="width:${Math.round((n / maxProj) * 100)}%;background:${color}"></i></span>
+                </div>`;
+            })
+            .join("")}
+        </div>
+      </div>
+
+      <div class="rail-figure">
+        <b>${s.busiest ? s.busiest[1] : 0}</b>
+        <span>Busiest week — ${s.busiest ? s.busiest[0] : "—"}</span>
+        <em>across ${s.weeks} week${s.weeks === 1 ? "" : "s"} of archive</em>
+      </div>
+    `;
   }
 
   function isoWeekLabel(iso) {
@@ -231,12 +392,12 @@
 
   function renderSyncStrip() {
     const labels = {
-      synced: "FILE ● SYNCED",
-      "mirror-only": "FILE ○ NOT CONNECTED — LOCAL ONLY",
-      disconnected: "FILE ✕ DISCONNECTED — RECONNECT",
-      "no-file": "FILE ○ NOT CONNECTED",
+      synced: "Synced to file",
+      "mirror-only": "Local only",
+      disconnected: "File disconnected",
+      "no-file": "Local only",
     };
-    els["sync-strip"].textContent = `>>> ${labels[state.syncStatus]}`;
+    els["sync-strip"].textContent = labels[state.syncStatus];
     els["sync-strip"].dataset.status = state.syncStatus;
     els["reconnect-banner"].hidden = state.syncStatus !== "disconnected";
     document.getElementById("no-file-banner").hidden = state.syncStatus === "synced";
@@ -246,10 +407,11 @@
     els["view-board-btn"].classList.toggle("active", state.view === "board");
     els["view-archive-btn"].classList.toggle("active", state.view === "archive");
     els["board"].hidden = state.view !== "board";
-    els["archive-list"].hidden = state.view !== "archive";
+    document.getElementById("archive-view").hidden = state.view !== "archive";
 
     renderProjectTabs();
     renderSyncStrip();
+    renderTelemetry();
     if (state.view === "board") renderBoard();
     else renderArchive();
   }
@@ -294,11 +456,11 @@
       </div>
       <label>SUBTASKS
         <div id="f-subtasks"></div>
-        <button type="button" id="f-add-subtask" class="btn-secondary">+ SUBTASK</button>
+        <button type="button" id="f-add-subtask" class="btn-secondary">+ Subtask</button>
       </label>
       <div class="modal-actions">
-        <button type="button" id="f-delete" class="btn-danger">DELETE ///</button>
-        <button type="button" id="f-save" class="btn-primary">SAVE ///</button>
+        <button type="button" id="f-delete" class="btn-danger">Delete</button>
+        <button type="button" id="f-save" class="btn-primary">Save</button>
       </div>
     `;
 
@@ -409,9 +571,18 @@
 
   function wireDragDrop() {
     [els["col-todo"], els["col-doing"], els["col-done"]].forEach((col) => {
-      col.addEventListener("dragover", (e) => e.preventDefault());
+      col.addEventListener("dragover", (e) => {
+        e.preventDefault();
+        col.classList.add("drop-target");
+      });
+      // dragleave fires when crossing onto a child, so only clear the
+      // highlight once the pointer is genuinely outside the column box.
+      col.addEventListener("dragleave", (e) => {
+        if (!col.contains(e.relatedTarget)) col.classList.remove("drop-target");
+      });
       col.addEventListener("drop", (e) => {
         e.preventDefault();
+        col.classList.remove("drop-target");
         const id = e.dataTransfer.getData("text/plain");
         const status = col.dataset.status;
         mutate((d) => {
@@ -436,13 +607,36 @@
     });
   }
 
+  // With no stored choice the OS decides (CSS prefers-color-scheme handles the
+  // paint); this only needs to report which substrate is actually showing so
+  // the toggle can be labelled with it instead of a meaningless "MODE".
+  function effectiveTheme() {
+    const explicit = document.documentElement.dataset.theme;
+    if (explicit) return explicit;
+    return window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light";
+  }
+
+  function paintThemeLabel() {
+    const t = effectiveTheme();
+    els["theme-label"].textContent = t === "dark" ? "Dark" : "Light";
+    els["theme-toggle"].title = `Currently ${t} — click for ${t === "dark" ? "light" : "dark"}`;
+  }
+
   function wireTheme() {
     const stored = localStorage.getItem("docket.theme");
     if (stored) document.documentElement.dataset.theme = stored;
+    paintThemeLabel();
+
     els["theme-toggle"].addEventListener("click", () => {
-      const next = document.documentElement.dataset.theme === "dark" ? "light" : "dark";
+      const next = effectiveTheme() === "dark" ? "light" : "dark";
       document.documentElement.dataset.theme = next;
       localStorage.setItem("docket.theme", next);
+      paintThemeLabel();
+    });
+
+    // Follow the OS while the user has not overridden it
+    window.matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+      if (!localStorage.getItem("docket.theme")) paintThemeLabel();
     });
   }
 

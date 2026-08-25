@@ -3,7 +3,9 @@
 //   the File System Access path, entirely outside this worker's reach.
 "use strict";
 
-const CACHE = "docket-shell-v1";
+// Bump on every shell change — an old cache would keep serving stale CSS/JS
+// to anyone who already loaded the site.
+const CACHE = "docket-shell-v2";
 const SHELL = [
   "./",
   "./index.html",
