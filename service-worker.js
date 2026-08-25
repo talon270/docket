@@ -5,7 +5,7 @@
 
 // Bump on every shell change — an old cache would keep serving stale CSS/JS
 // to anyone who already loaded the site.
-const CACHE = "docket-shell-v4";
+const CACHE = "docket-shell-v5";
 const SHELL = [
   "./",
   "./index.html",
@@ -17,6 +17,7 @@ const SHELL = [
   "./js/app.js",
   "./js/guide.js",
   "./manifest.webmanifest",
+  "./404.html",
 ];
 
 self.addEventListener("install", (e) => {

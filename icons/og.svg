@@ -1,0 +1,35 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <rect width="1200" height="630" fill="#090909"/>
+
+  <!-- blueprint grid, matching the app substrate -->
+  <g stroke="#EAEAEA" stroke-opacity="0.05" stroke-width="1">
+    <path d="M48 0V630M96 0V630M144 0V630M192 0V630M240 0V630M288 0V630M336 0V630M384 0V630M432 0V630M480 0V630M528 0V630M576 0V630M624 0V630M672 0V630M720 0V630M768 0V630M816 0V630M864 0V630M912 0V630M960 0V630M1008 0V630M1056 0V630M1104 0V630M1152 0V630"/>
+    <path d="M0 48H1200M0 96H1200M0 144H1200M0 192H1200M0 240H1200M0 288H1200M0 336H1200M0 384H1200M0 432H1200M0 480H1200M0 528H1200M0 576H1200"/>
+  </g>
+
+  <rect x="40" y="40" width="1120" height="550" fill="none" stroke="#EAEAEA" stroke-width="3"/>
+
+  <text x="88" y="250" font-family="Arial Black, Arial, sans-serif" font-weight="900"
+        font-size="150" letter-spacing="-6" fill="#EAEAEA">DOCKET</text>
+  <text x="700" y="250" font-family="Arial Black, Arial, sans-serif" font-weight="900"
+        font-size="46" fill="#FF2A2A">®</text>
+
+  <rect x="88" y="284" width="300" height="10" fill="#FF2A2A"/>
+
+  <text x="88" y="370" font-family="monospace" font-size="30" letter-spacing="3" fill="#8B8B85">
+    A TASK BOARD THAT KEEPS ITS OWN FILE.
+  </text>
+  <text x="88" y="414" font-family="monospace" font-size="30" letter-spacing="3" fill="#8B8B85">
+    OFFLINE. NO ACCOUNTS. NO SERVER.
+  </text>
+
+  <!-- three column markers echoing the board -->
+  <g font-family="monospace" font-size="20" letter-spacing="3" fill="#EAEAEA">
+    <rect x="88" y="470" width="320" height="2" fill="#EAEAEA"/>
+    <text x="88" y="510">TO DO</text>
+    <rect x="440" y="470" width="320" height="2" fill="#EAEAEA"/>
+    <text x="440" y="510">IN PROGRESS</text>
+    <rect x="792" y="470" width="320" height="2" fill="#EAEAEA"/>
+    <text x="792" y="510">DONE</text>
+  </g>
+</svg>

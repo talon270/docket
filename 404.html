@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>404 · Docket</title>
+<link rel="icon" type="image/svg+xml" href="/docket/icons/icon.svg">
+<meta name="theme-color" content="#090909">
+<!-- Styles are inlined rather than linked: a 404 can be served for a URL at
+     any depth, and a relative stylesheet path would resolve differently for
+     /docket/x than for /docket/a/b/x. An unstyled error page is worse than a
+     duplicated block of CSS. -->
+<style>
+  :root {
+    --bg: #F2F1EC; --fg: #0A0A0A; --fg-dim: #55534C; --fg-ghost: #89856F;
+    --accent: #E61919; --grid-line: rgba(10,10,10,0.055);
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #090909; --fg: #EAEAEA; --fg-dim: #8B8B85; --fg-ghost: #646464;
+      --accent: #FF2A2A; --grid-line: rgba(234,234,234,0.045);
+    }
+  }
+  * { box-sizing: border-box; }
+  html { background: var(--bg); }
+  body {
+    margin: 0;
+    min-height: 100vh;
+    display: flex;
+    align-items: center;
+    background: var(--bg);
+    color: var(--fg);
+    font-family: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+    background-image:
+      linear-gradient(var(--grid-line) 1px, transparent 1px),
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px);
+    background-size: 48px 48px, 48px 48px;
+  }
+  main { padding: clamp(1.5rem, 6vw, 5rem); max-width: 760px; }
+  .code {
+    font-family: "Archivo Black", "Helvetica Neue", Arial, sans-serif;
+    font-weight: 900;
+    font-size: clamp(5rem, 20vw, 12rem);
+    line-height: 0.8;
+    letter-spacing: -0.06em;
+    color: var(--fg-ghost);
+    margin: 0 0 1.5rem;
+  }
+  h1 {
+    font-family: "Archivo Black", "Helvetica Neue", Arial, sans-serif;
+    font-size: clamp(1.2rem, 3vw, 1.9rem);
+    letter-spacing: -0.03em;
+    text-transform: uppercase;
+    margin: 0 0 0.9rem;
+  }
+  .rule { width: 220px; height: 8px; background: var(--accent); margin-bottom: 1.75rem; }
+  p { font-size: 0.85rem; line-height: 1.6; color: var(--fg-dim); margin: 0 0 2rem; max-width: 52ch; }
+  a.back {
+    display: inline-block;
+    border: 1px solid var(--fg);
+    background: var(--fg);
+    color: var(--bg);
+    padding: 0.7rem 1.4rem;
+    font-size: 0.68rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    text-decoration: none;
+    transition: background 130ms linear, color 130ms linear, transform 130ms ease-out;
+  }
+  a.back:hover { background: var(--accent); border-color: var(--accent); color: #fff; transform: translate(-2px,-2px); }
+  a.back:focus-visible { outline: 2px solid var(--accent); outline-offset: 3px; }
+  .note { font-size: 0.62rem; letter-spacing: 0.08em; color: var(--fg-dim); margin-top: 2.5rem; }
+</style>
+</head>
+<body>
+<main>
+  <p class="code">404</p>
+  <h1>No page at that address</h1>
+  <div class="rule"></div>
+  <p>
+    Docket is a single page — there is nothing to browse to. Either the link
+    was mistyped, or it points at something that never existed here.
+    Your tasks are unaffected: they live in your browser and in your own
+    file, not on this server.
+  </p>
+  <a class="back" href="/docket/">Back to the board</a>
+  <p class="note">DOCKET® / ERR 404 / NO ROUTE</p>
+</main>
+</body>
+</html>

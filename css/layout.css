@@ -13,6 +13,29 @@
   min-height: 100vh;
 }
 
+/* Off-screen until focused. Points at quick add rather than at <main>,
+   because capture is what a keyboard user actually wants to reach first. */
+.skip-link {
+  position: fixed;
+  top: 0;
+  left: 0;
+  z-index: var(--z-tour);
+  transform: translateY(-120%);
+  background: var(--accent);
+  color: #fff;
+  padding: 0.7rem 1.1rem;
+  font-size: 0.66rem;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-decoration: none;
+  transition: transform 140ms ease-out;
+}
+.skip-link:focus {
+  transform: translateY(0);
+  outline: 2px solid var(--fg);
+  outline-offset: -6px;
+}
+
 /* ---- topbar: macro wordmark vs micro telemetry ----------------------- */
 
 .topbar {
@@ -170,7 +193,7 @@
   position: absolute;
   right: clamp(1rem, 3vw, 2.25rem);
   top: 100%;
-  z-index: 30;
+  z-index: var(--z-popover);
   background: var(--bg);
   border: 2px solid var(--border);
   box-shadow: 6px 6px 0 var(--shadow-hard);
@@ -327,7 +350,7 @@
   position: sticky;
   top: 0;
   background: var(--bg);
-  z-index: 5;
+  z-index: var(--z-sticky);
 }
 
 .column-name {
@@ -408,7 +431,7 @@
 .card:hover {
   transform: translate(-3px, -3px);
   box-shadow: 5px 5px 0 var(--shadow-hard);
-  z-index: 2;
+  z-index: var(--z-raised);
 }
 .card:active { cursor: grabbing; }
 .card.dragging {
@@ -628,7 +651,7 @@
   align-items: center;
   justify-content: center;
   padding: 1rem;
-  z-index: 60;
+  z-index: var(--z-modal);
   animation: fade-in 140ms ease-out both;
 }
 @keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
@@ -728,7 +751,7 @@
   position: fixed;
   bottom: 1.5rem;
   right: 1.5rem;
-  z-index: 200;
+  z-index: var(--z-toast);
   background: var(--fg);
   color: var(--bg);
   border: 2px solid var(--border);
@@ -751,7 +774,7 @@
   pointer-events: none;
   position: fixed;
   inset: 0;
-  z-index: 100;
+  z-index: var(--z-scanlines);
   opacity: var(--scanline-alpha);
   background: repeating-linear-gradient(
     0deg,
@@ -944,7 +967,7 @@
 .tour {
   position: fixed;
   inset: 0;
-  z-index: 500;
+  z-index: var(--z-tour);
 }
 
 /* The cutout: a box positioned exactly over the target element. Its own

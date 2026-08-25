@@ -15,7 +15,7 @@
   --bg-sunk: #DEDCD3;
   --fg: #0A0A0A;
   --fg-dim: #55534C;
-  --fg-ghost: #C9C6BB;
+  --fg-ghost: #89856F;
   --border: #0A0A0A;
   --border-hair: rgba(10, 10, 10, 0.22);
   --accent: #E61919;
@@ -26,6 +26,16 @@
 
   --font-macro: "Archivo Black", "Helvetica Neue", Arial, sans-serif;
   --font-micro: "JetBrains Mono", "IBM Plex Mono", ui-monospace, monospace;
+
+  /* Stacking scale. Named so a new layer is placed by intent rather than by
+     picking a number bigger than whatever was there before. */
+  --z-raised: 2;      /* a card lifted on hover */
+  --z-sticky: 5;      /* sticky column headers */
+  --z-popover: 30;    /* project popover */
+  --z-modal: 60;      /* task detail */
+  --z-scanlines: 100; /* CRT overlay, above content, below feedback */
+  --z-toast: 200;
+  --z-tour: 500;      /* guided tour dims everything else */
 }
 
 /* OS preference, only while the user has made no explicit choice */
@@ -36,7 +46,7 @@
     --bg-sunk: #050505;
     --fg: #EAEAEA;
     --fg-dim: #8B8B85;
-    --fg-ghost: #232323;
+    --fg-ghost: #646464;
     --border: #EAEAEA;
     --border-hair: rgba(234, 234, 234, 0.20);
     --accent: #FF2A2A;
@@ -54,7 +64,7 @@
   --bg-sunk: #050505;
   --fg: #EAEAEA;
   --fg-dim: #8B8B85;
-  --fg-ghost: #232323;
+  --fg-ghost: #646464;
   --border: #EAEAEA;
   --border-hair: rgba(234, 234, 234, 0.20);
   --accent: #FF2A2A;
