@@ -87,10 +87,52 @@
     </div>
   </div>
 
-  <div class="quick-add">
-    <span class="quick-add-prefix">&gt;&gt;&gt;</span>
-    <input type="text" id="quick-add-input" placeholder="ADD A TASK — PRESS ENTER" autocomplete="off">
-    <span class="quick-add-hint">N</span>
+  <div class="quick-add" id="quick-add">
+    <div class="quick-add-row">
+      <span class="quick-add-prefix">&gt;&gt;&gt;</span>
+      <input type="text" id="quick-add-input" placeholder="ADD A TASK — PRESS ENTER" autocomplete="off">
+      <span class="quick-add-summary" id="quick-add-summary" hidden></span>
+      <span class="quick-add-hint">N</span>
+    </div>
+
+    <div class="quick-add-panel" id="quick-add-panel" hidden>
+      <label class="qa-field">
+        <span>Project</span>
+        <select id="qa-project"></select>
+      </label>
+
+      <label class="qa-field">
+        <span>Due date</span>
+        <input type="date" id="qa-date">
+      </label>
+
+      <label class="qa-field">
+        <span>Due time</span>
+        <input type="time" id="qa-time">
+      </label>
+
+      <div class="qa-field">
+        <span>Priority</span>
+        <div class="seg" id="qa-priority" role="radiogroup" aria-label="Priority">
+          <button type="button" data-v="high" role="radio" aria-checked="false">High</button>
+          <button type="button" data-v="med" role="radio" aria-checked="true" class="on">Med</button>
+          <button type="button" data-v="low" role="radio" aria-checked="false">Low</button>
+        </div>
+      </div>
+
+      <div class="qa-field">
+        <span>Column</span>
+        <div class="seg" id="qa-status" role="radiogroup" aria-label="Starting column">
+          <button type="button" data-v="todo" role="radio" aria-checked="true" class="on">To do</button>
+          <button type="button" data-v="doing" role="radio" aria-checked="false">In progress</button>
+        </div>
+      </div>
+
+      <div class="qa-actions">
+        <span class="qa-note">Enter adds it · Esc clears</span>
+        <button type="button" id="qa-add" class="btn-primary">Add task</button>
+      </div>
+    </div>
   </div>
 
   <main id="board" class="board">
