@@ -17,7 +17,7 @@
 
 .topbar {
   display: grid;
-  grid-template-columns: auto 1fr auto auto auto;
+  grid-template-columns: auto 1fr auto auto auto auto;
   align-items: center;
   gap: clamp(1rem, 3vw, 2.5rem);
   padding: 1.1rem clamp(1rem, 3vw, 2.25rem);
@@ -100,6 +100,29 @@
   display: inline-block;
 }
 #theme-toggle:hover .theme-dot { background: var(--bg); }
+
+.guide-btn {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.5rem 0.85rem;
+  font-size: 0.66rem;
+  white-space: nowrap;
+  border-color: var(--accent);
+  color: var(--accent);
+}
+.guide-btn:hover { background: var(--accent); color: #fff; }
+.guide-mark {
+  width: 15px;
+  height: 15px;
+  border: 1px solid currentColor;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-macro);
+  font-size: 0.6rem;
+  flex: none;
+}
 
 /* ---- project tabs ----------------------------------------------------- */
 
@@ -737,13 +760,93 @@
   );
 }
 
+/* ---- guided tour ---------------------------------------------------------- */
+
+.tour {
+  position: fixed;
+  inset: 0;
+  z-index: 500;
+}
+
+/* The cutout: a box positioned exactly over the target element. Its own
+   background is transparent; the dimming comes entirely from a box-shadow
+   large enough to cover the viewport, which is how a hole gets punched in
+   an otherwise solid overlay without a second stacking layer. */
+.tour-spot {
+  position: fixed;
+  box-shadow: 0 0 0 9999px rgba(0, 0, 0, 0.78);
+  border: 2px solid var(--accent);
+  transition: top 220ms ease-out, left 220ms ease-out, width 220ms ease-out, height 220ms ease-out;
+  pointer-events: none;
+}
+
+.tour-card {
+  position: fixed;
+  width: min(340px, calc(100vw - 2rem));
+  background: var(--bg);
+  border: 2px solid var(--border);
+  box-shadow: 8px 8px 0 var(--shadow-hard);
+  padding: 1.15rem 1.25rem 1.25rem;
+  transition: top 220ms ease-out, left 220ms ease-out;
+}
+
+.tour-eyebrow {
+  font-size: 0.58rem;
+  letter-spacing: 0.14em;
+  color: var(--accent);
+  margin-bottom: 0.55rem;
+}
+
+.tour-title {
+  font-family: var(--font-macro);
+  font-size: clamp(1.1rem, 2vw, 1.4rem);
+  letter-spacing: -0.02em;
+  line-height: 1;
+  margin: 0 0 0.6rem;
+  text-transform: uppercase;
+}
+
+.tour-body {
+  font-size: 0.78rem;
+  line-height: 1.55;
+  color: var(--fg-dim);
+  margin: 0 0 1.1rem;
+}
+
+.tour-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border-hair);
+}
+
+.tour-skip {
+  border: none;
+  padding: 0.3rem 0;
+  font-size: 0.6rem;
+  color: var(--fg-dim);
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.tour-skip:hover { background: transparent; color: var(--accent); }
+
+.tour-nav { display: flex; gap: 0.5rem; }
+.tour-nav button {
+  padding: 0.4rem 0.8rem;
+  font-size: 0.6rem;
+}
+#tour-back:disabled { opacity: 0.35; cursor: default; }
+#tour-back:disabled:hover { background: transparent; color: var(--fg); }
+
 [hidden] { display: none !important; }
 
 /* ---- responsive ------------------------------------------------------------ */
 
 @media (max-width: 1100px) {
   .telemetry { display: none; }
-  .topbar { grid-template-columns: auto 1fr auto auto; }
+  .topbar { grid-template-columns: auto 1fr auto auto auto; }
 }
 
 @media (max-width: 1000px) {
@@ -761,5 +864,5 @@
   }
   .logo { grid-column: 1; }
   #theme-toggle { grid-column: 2; }
-  .view-switch, .data-controls { grid-column: span 2; }
+  .view-switch, .data-controls, .guide-btn { grid-column: span 2; }
 }

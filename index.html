@@ -52,6 +52,10 @@
     <button id="theme-toggle" aria-label="Switch between light and dark">
       <span class="theme-dot"></span><span id="theme-label">Dark</span>
     </button>
+
+    <button id="guide-btn" class="guide-btn" title="Take a guided tour of Docket">
+      <span class="guide-mark">?</span>Guide
+    </button>
   </header>
 
   <nav class="project-bar">
@@ -138,9 +142,26 @@
   </div>
 </div>
 
+<div id="tour" class="tour" hidden role="dialog" aria-modal="true" aria-label="Guided tour">
+  <div id="tour-spot" class="tour-spot"></div>
+  <div id="tour-card" class="tour-card">
+    <div class="tour-eyebrow" id="tour-step-label">GUIDE 01/08</div>
+    <h2 class="tour-title" id="tour-title"></h2>
+    <p class="tour-body" id="tour-body"></p>
+    <div class="tour-actions">
+      <button type="button" id="tour-skip" class="tour-skip">Skip tour</button>
+      <div class="tour-nav">
+        <button type="button" id="tour-back">Back</button>
+        <button type="button" id="tour-next" class="btn-primary">Next</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <script src="js/schema.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/reminders.js"></script>
 <script src="js/app.js"></script>
+<script src="js/guide.js"></script>
 </body>
 </html>

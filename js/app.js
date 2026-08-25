@@ -281,12 +281,19 @@
     return `${d < 10 ? d.toFixed(1) : Math.round(d)}d`;
   }
 
+  // #archive-rail itself stretches to fill the grid row (deliberately, so the
+  // archive view never strands empty background beside a short list). That
+  // makes its own rect useless for anything that needs the content's real
+  // height — the guided tour in particular — so everything renders inside
+  // this inner wrapper, which sizes to its content like a normal block.
   function renderArchiveRail(archived) {
     const rail = document.getElementById("archive-rail");
     if (!archived.length) {
       rail.innerHTML = `
-        <div class="rail-title">Throughput</div>
-        <div class="rail-empty">Nothing archived yet. Cards move here automatically 7 days after they are marked done, and these figures fill in from their own timestamps.</div>
+        <div class="rail-content">
+          <div class="rail-title">Throughput</div>
+          <div class="rail-empty">Nothing archived yet. Cards move here automatically 7 days after they are marked done, and these figures fill in from their own timestamps.</div>
+        </div>
       `;
       return;
     }
@@ -295,6 +302,7 @@
     const maxProj = Math.max(...s.byProject.map((p) => p[1]));
 
     rail.innerHTML = `
+      <div class="rail-content">
       <div class="rail-title">Throughput</div>
 
       <div class="rail-figure">
@@ -338,6 +346,7 @@
         <b>${s.busiest ? s.busiest[1] : 0}</b>
         <span>Busiest week — ${s.busiest ? s.busiest[0] : "—"}</span>
         <em>across ${s.weeks} week${s.weeks === 1 ? "" : "s"} of archive</em>
+      </div>
       </div>
     `;
   }
@@ -787,4 +796,14 @@
   }
 
   document.addEventListener("DOMContentLoaded", boot);
+
+  // Minimal surface for guide.js — it needs to switch views to show the
+  // archive rail without duplicating the render/state logic above.
+  window.Docket.App = {
+    goToView(v) {
+      state.view = v;
+      render();
+    },
+    currentView: () => state.view,
+  };
 })();
