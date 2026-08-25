@@ -72,17 +72,19 @@
     </button>
   </header>
 
-  <nav class="project-bar">
-    <div id="project-tabs" style="display:flex"></div>
+  <div class="project-bar-wrap">
+    <nav class="project-bar">
+      <div id="project-tabs" style="display:flex"></div>
 
-    <div class="search-box">
-      <span class="search-icon" aria-hidden="true">⌕</span>
-      <input type="search" id="search-input" placeholder="SEARCH TITLES AND NOTES" autocomplete="off" aria-label="Search tasks">
-      <span class="search-count" id="search-count" hidden></span>
-      <button type="button" id="search-clear" hidden aria-label="Clear search">×</button>
-    </div>
+      <div class="search-box">
+        <span class="search-icon" aria-hidden="true">⌕</span>
+        <input type="search" id="search-input" placeholder="SEARCH TITLES AND NOTES" autocomplete="off" aria-label="Search tasks">
+        <span class="search-count" id="search-count" hidden></span>
+        <button type="button" id="search-clear" hidden aria-label="Clear search">×</button>
+      </div>
 
-    <button id="new-project-btn">+ Project</button>
+      <button id="new-project-btn">+ Project</button>
+    </nav>
     <div id="project-popover" class="popover" hidden>
       <div id="project-popover-list"></div>
       <div class="popover-form">
@@ -91,7 +93,7 @@
         <button id="project-popover-add">Add</button>
       </div>
     </div>
-  </nav>
+  </div>
 
   <div class="status-rail">
     <div id="sync-strip" class="sync-strip" data-status="no-file">Local only</div>

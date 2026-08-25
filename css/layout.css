@@ -149,6 +149,10 @@
 
 /* ---- project tabs ----------------------------------------------------- */
 
+.project-bar-wrap {
+  position: relative;
+}
+
 .project-bar {
   display: flex;
   align-items: stretch;
@@ -156,7 +160,6 @@
   border-bottom: 1px solid var(--border);
   background: var(--bg);
   overflow-x: auto;
-  position: relative;
   scrollbar-width: thin;
 }
 
