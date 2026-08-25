@@ -37,7 +37,6 @@
       "project-popover", "project-popover-list", "new-project-name", "new-project-color",
       "card-modal", "card-modal-body", "notif-banner", "notif-enable-btn",
       "export-btn", "import-btn", "import-file-input", "toast",
-      "quick-add", "quick-add-panel", "quick-add-summary",
     ].forEach((id) => (els[id] = $(id)));
   }
 
@@ -358,7 +357,6 @@
     allTab.textContent = "ALL";
     allTab.addEventListener("click", () => {
       state.activeProjectId = "all";
-      $("qa-project").value = "";
       render();
     });
     wrap.appendChild(allTab);
@@ -369,10 +367,9 @@
       tab.style.setProperty("--accent", p.color);
       tab.textContent = p.name;
       tab.addEventListener("click", () => {
-        // Filtering to a project also aims the quick-add at it — the
-        // highlighted tab is what makes that visible rather than silent.
+        // Filtering to a project also aims quick-add at it — a task created
+        // while filtered to Ashoka is assigned to Ashoka.
         state.activeProjectId = p.id;
-        $("qa-project").value = p.id;
         render();
       });
       wrap.appendChild(tab);
@@ -417,8 +414,6 @@
     renderProjectTabs();
     renderSyncStrip();
     renderTelemetry();
-    syncQuickAddProjects();
-    paintQuickAddSummary();
     if (state.view === "board") renderBoard();
     else renderArchive();
   }
@@ -553,156 +548,38 @@
 
   // ---- wiring ---------------------------------------------------------------
 
-  // Quick-add draft. Held outside the DOM so the panel can collapse and
-  // reopen without losing what was set, and so one function decides what
-  // survives an add and what does not.
-  const draft = { priority: "med", status: "todo" };
-
-  function segValue(id) {
-    return $(id).querySelector("button.on").dataset.v;
-  }
-
-  function wireSeg(id, onPick) {
-    const wrap = $(id);
-    wrap.addEventListener("click", (e) => {
-      const btn = e.target.closest("button[data-v]");
-      if (!btn) return;
-      wrap.querySelectorAll("button").forEach((b) => {
-        const on = b === btn;
-        b.classList.toggle("on", on);
-        b.setAttribute("aria-checked", String(on));
-      });
-      onPick(btn.dataset.v);
-    });
-  }
-
-  // The project filter you are looking at is the visible indicator of where a
-  // new task lands, so the picker follows it rather than keeping a hidden
-  // sticky value of its own.
-  function syncQuickAddProjects() {
-    const sel = $("qa-project");
-    const wanted = sel.value || (state.activeProjectId !== "all" ? state.activeProjectId : "");
-    sel.innerHTML =
-      `<option value="">No project</option>` +
-      state.data.projects
-        .map((p) => `<option value="${p.id}">${escapeHtml(p.name)}</option>`)
-        .join("");
-    const stillExists = [...sel.options].some((o) => o.value === wanted);
-    sel.value = stillExists ? wanted : state.activeProjectId !== "all" ? state.activeProjectId : "";
-  }
-
-  function quickAddPanelOpen() {
-    return !$("quick-add-panel").hidden;
-  }
-
-  function openQuickAddPanel() {
-    if (quickAddPanelOpen()) return;
-    syncQuickAddProjects();
-    $("quick-add-panel").hidden = false;
-    paintQuickAddSummary();
-  }
-
-  function closeQuickAddPanel() {
-    $("quick-add-panel").hidden = true;
-    paintQuickAddSummary();
-  }
-
-  // Date and time reset after every add — carrying a due date silently onto
-  // the next task is the destructive-by-surprise case. Project, priority and
-  // column persist, and the collapsed bar names them so they are never hidden.
-  function resetQuickAddPerTaskFields() {
-    $("qa-date").value = "";
-    $("qa-time").value = "";
-  }
-
-  function paintQuickAddSummary() {
-    const el = els["quick-add-summary"];
-    if (quickAddPanelOpen()) {
-      el.hidden = true;
-      return;
-    }
-    const bits = [];
-    const projId = $("qa-project").value;
-    const proj = projId ? projectById(projId) : null;
-    if (proj) bits.push(proj.name);
-    if (draft.priority !== "med") bits.push(draft.priority);
-    if (draft.status !== "todo") bits.push("in progress");
-    if ($("qa-date").value) bits.push($("qa-date").value);
-
-    el.innerHTML = bits.map((b) => `<b>${escapeHtml(b)}</b>`).join("");
-    el.hidden = bits.length === 0;
-  }
-
+  // Capture is title-only and immediate — no prospective fields to fill in
+  // before the task exists. Enter creates it with defaults (no project, med
+  // priority, To do) and opens its detail modal right away so deadline,
+  // project, priority and subtasks are added to a task that already exists,
+  // never staged for one that might not get created.
   function submitQuickAdd() {
     const input = els["quick-add-input"];
     const title = input.value.trim();
-    if (!title) {
-      input.focus();
-      return;
-    }
-    const status = draft.status;
+    if (!title) return;
+
     mutate((d) => {
       d.tasks.push(
         makeTask({
           title,
-          projectId: $("qa-project").value || null,
-          dueDate: $("qa-date").value || null,
-          dueTime: $("qa-time").value || null,
-          priority: draft.priority,
-          status,
-          doneAt: null,
+          projectId: state.activeProjectId !== "all" ? state.activeProjectId : null,
         })
       );
     });
     const created = state.data.tasks[state.data.tasks.length - 1];
-    Reminders.schedule(created);
 
     input.value = "";
-    resetQuickAddPerTaskFields();
-    paintQuickAddSummary();
-    input.focus();
+    openCardModal(created.id);
   }
 
   function wireQuickAdd() {
     const input = els["quick-add-input"];
-    const shell = $("quick-add");
 
-    syncQuickAddProjects();
-    wireSeg("qa-priority", (v) => {
-      draft.priority = v;
-      paintQuickAddSummary();
-    });
-    wireSeg("qa-status", (v) => {
-      draft.status = v;
-      paintQuickAddSummary();
-    });
-    $("qa-project").addEventListener("change", paintQuickAddSummary);
-    $("qa-date").addEventListener("change", paintQuickAddSummary);
-    $("qa-add").addEventListener("click", submitQuickAdd);
-
-    input.addEventListener("focus", openQuickAddPanel);
-
-    // Enter submits from any control in the bar, so the options never turn
-    // capture into a two-step gesture.
-    shell.addEventListener("keydown", (e) => {
+    input.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
         submitQuickAdd();
       }
-      if (e.key === "Escape") {
-        input.value = "";
-        resetQuickAddPerTaskFields();
-        closeQuickAddPanel();
-        input.blur();
-      }
-    });
-
-    // Collapse only when focus leaves the whole bar and nothing is typed —
-    // clicking the date field blurs the input but must not close the panel.
-    shell.addEventListener("focusout", (e) => {
-      if (shell.contains(e.relatedTarget)) return;
-      if (input.value.trim()) return;
-      closeQuickAddPanel();
     });
 
     document.addEventListener("keydown", (e) => {

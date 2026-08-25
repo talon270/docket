@@ -243,111 +243,12 @@
 /* ---- quick add --------------------------------------------------------- */
 
 .quick-add {
-  border-bottom: 2px solid var(--border);
-  background: var(--bg);
-}
-
-.quick-add-row {
   display: flex;
   align-items: center;
+  border-bottom: 2px solid var(--border);
   padding: 0.85rem clamp(1rem, 3vw, 2.25rem);
   gap: 0.85rem;
-}
-
-/* Whatever is set but not visible on the collapsed bar is summarised here,
-   so a queued project or due date is never applied silently. */
-.quick-add-summary {
-  display: flex;
-  gap: 0.4rem;
-  flex: none;
-  font-size: 0.58rem;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
-}
-.quick-add-summary b {
-  font-weight: 400;
-  color: var(--fg);
-  border: 1px solid var(--border-hair);
-  padding: 0.12rem 0.4rem;
-}
-
-.quick-add-panel {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 1rem clamp(1rem, 2vw, 1.6rem);
-  align-items: flex-end;
-  padding: 1.1rem clamp(1rem, 3vw, 2.25rem);
-  border-top: 1px solid var(--border-hair);
-  animation: qa-in 150ms ease-out both;
-}
-@keyframes qa-in {
-  from { opacity: 0; transform: translateY(-4px); }
-  to   { opacity: 1; transform: none; }
-}
-
-/* Bounded so a date input does not sprawl to 300px on a wide screen */
-.qa-field {
-  display: flex;
-  flex-direction: column;
-  gap: 0.35rem;
-  min-width: 0;
-  flex: 0 1 auto;
-}
-.qa-field:has(select) { flex-basis: 190px; }
-.qa-field:has(input[type="date"]) { flex-basis: 165px; }
-.qa-field:has(input[type="time"]) { flex-basis: 125px; }
-.qa-field:has(.seg) { flex-basis: auto; }
-.qa-field > span {
-  font-size: 0.56rem;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
-}
-.qa-field select,
-.qa-field input {
-  padding: 0.42rem 0.5rem;
-  font-size: 0.78rem;
-  border: 1px solid var(--fg-dim);
-  background: var(--bg-panel);
-  width: 100%;
-}
-.qa-field select:focus,
-.qa-field input:focus { border-color: var(--fg); outline: none; }
-
-.seg { display: flex; border: 1px solid var(--fg-dim); }
-.seg button {
-  flex: 1;
-  border: none;
-  padding: 0.42rem 0.3rem;
-  font-size: 0.58rem;
-  letter-spacing: 0.06em;
-  white-space: nowrap;
-  color: var(--fg-dim);
-}
-.seg button + button { border-left: 1px solid var(--border-hair); }
-.seg button.on { background: var(--fg); color: var(--bg); }
-.seg button.on[data-v="high"] { background: var(--accent); color: #fff; }
-
-.qa-actions {
-  display: flex;
-  align-items: center;
-  justify-content: flex-end;
-  gap: 0.9rem;
-  margin-left: auto;
-  flex: 0 0 auto;
-}
-.qa-note {
-  font-size: 0.56rem;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--fg-dim);
-  white-space: nowrap;
-}
-#qa-add {
-  padding: 0.55rem 1.3rem;
-  font-size: 0.6rem;
-  white-space: nowrap;
+  background: var(--bg);
 }
 .quick-add-prefix {
   font-family: var(--font-macro);
