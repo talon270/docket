@@ -14,12 +14,25 @@
     {
       target: "#quick-add-input",
       title: "Quick add",
-      body: "Type a title and press Enter — the task is created immediately. A panel opens after so you can add a due date, project or priority to a task that already exists. None of that is required to save it.",
+      body: "Type a title and press Enter — the task is created immediately, and its detail panel opens so you can add a due date, notes, subtasks or a repeat. None of that is required to save it.",
     },
     {
       target: "#board",
       title: "The board",
-      body: "Three columns: To do, In progress, Done. Drag a card between them — dropping it in Done marks it finished. The big number on each header is how many cards are in it.",
+      body: "Three columns: To do, In progress, Done. Drag a card between them, or click one and press 1, 2 or 3. Drag a card up or down inside a column to set your own order. On a phone, open the card and use its Status buttons.",
+      onEnter: () => window.Docket.App.goToView("board"),
+    },
+    {
+      target: ".search-box",
+      title: "Search",
+      body: "Searches titles and notes at once, across the board and the archive together. The count tells you how many tasks match in total, so a result is never hidden in a view you are not looking at.",
+    },
+    {
+      target: "#agenda-list",
+      title: "Agenda",
+      body: "The same tasks arranged by when they are due instead of by status: Overdue, Today, Tomorrow, This week, Later, No date. Click any row to open it.",
+      onEnter: () => window.Docket.App.goToView("agenda"),
+      onExit: () => window.Docket.App.goToView("board"),
     },
     {
       target: ".project-bar",
@@ -51,7 +64,7 @@
     {
       target: "#guide-btn",
       title: "That's Docket",
-      body: "Press N any time to jump straight to quick add. Come back here whenever you want the tour again — nothing about it changes what's on your board.",
+      body: "Press N to capture a task from anywhere. Click a card and press 1, 2 or 3 to move it. Deleting always offers an Undo. Come back here whenever you want the tour again — it never changes what is on your board.",
     },
   ];
 

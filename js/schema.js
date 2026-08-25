@@ -7,7 +7,9 @@
 window.Docket = window.Docket || {};
 
 (function () {
-  const SCHEMA_VERSION = 1;
+  // v2 adds notes, recurrence and order. Nothing was removed or reshaped, so
+  // migrate() only has to fill defaults — a v1 file loses nothing.
+  const SCHEMA_VERSION = 2;
 
   function uuid() {
     return crypto.randomUUID();
@@ -29,6 +31,9 @@ window.Docket = window.Docket || {};
         priority: "med",
         status: "todo",
         subtasks: [],
+        notes: "",
+        recurrence: null, // { every: 'day'|'week'|'month', interval: number }
+        order: null,      // null = fall back to the priority/due-date sort
         doneAt: null,
         archivedAt: null,
         createdAt: now,
@@ -36,6 +41,25 @@ window.Docket = window.Docket || {};
       },
       overrides
     );
+  }
+
+  // Fills fields added after a file was written. Runs on every read of the
+  // file and of the localStorage mirror, so a v1 file opened in v2 is
+  // upgraded in place rather than partially read.
+  function migrate(data) {
+    if (!data || typeof data !== "object") return null;
+    const tasks = (data.tasks || []).map((t) => ({
+      notes: "",
+      recurrence: null,
+      order: null,
+      subtasks: [],
+      ...t,
+    }));
+    return {
+      schemaVersion: SCHEMA_VERSION,
+      projects: data.projects || [],
+      tasks,
+    };
   }
 
   function makeProject(overrides) {
@@ -61,5 +85,6 @@ window.Docket = window.Docket || {};
     makeTask,
     makeProject,
     makeFile,
+    migrate,
   };
 })();

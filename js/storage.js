@@ -9,7 +9,7 @@
 window.Docket = window.Docket || {};
 
 (function () {
-  const { SCHEMA_VERSION, makeFile } = window.Docket.Schema;
+  const { SCHEMA_VERSION, makeFile, migrate } = window.Docket.Schema;
   const MIRROR_KEY = "docket.v1";
   const DB_NAME = "docket-handles";
   const DB_STORE = "handles";
@@ -61,9 +61,7 @@ window.Docket = window.Docket || {};
     const raw = localStorage.getItem(MIRROR_KEY);
     if (!raw) return null;
     try {
-      const parsed = JSON.parse(raw);
-      if (parsed.schemaVersion !== SCHEMA_VERSION) return parsed; // migration point, v1 has none yet
-      return parsed;
+      return migrate(JSON.parse(raw));
     } catch {
       return null;
     }
@@ -75,7 +73,7 @@ window.Docket = window.Docket || {};
     const file = await handle.getFile();
     const text = await file.text();
     if (!text.trim()) return makeFile();
-    return JSON.parse(text);
+    return migrate(JSON.parse(text));
   }
 
   async function writeFile(handle, data) {
@@ -188,12 +186,19 @@ window.Docket = window.Docket || {};
   async function init() {
     const handle = await loadHandle().catch(() => null);
     if (!handle) {
-      return { data: loadMirror() || makeFile(), status: "no-file" };
+      // Persist the migrated shape immediately. Without this the mirror keeps
+      // its pre-migration form until the first edit, so opening and closing
+      // the app would leave an old-schema copy on disk indefinitely.
+      const data = loadMirror() || makeFile();
+      saveMirror(data);
+      return { data, status: "no-file" };
     }
     fileHandle = handle;
     const perm = await handle.queryPermission({ mode: "readwrite" }).catch(() => "denied");
     if (perm !== "granted") {
-      return { data: loadMirror() || makeFile(), status: "disconnected" };
+      const data = loadMirror() || makeFile();
+      saveMirror(data);
+      return { data, status: "disconnected" };
     }
     const fileData = await readFile(handle).catch(() => null);
     const mirrorData = loadMirror();
@@ -240,7 +245,9 @@ window.Docket = window.Docket || {};
     if (!parsed || typeof parsed !== "object" || !Array.isArray(parsed.tasks) || !Array.isArray(parsed.projects)) {
       throw new Error("not a valid Docket export");
     }
-    return parsed;
+    // An export taken before v2 is a valid file — migrate it on the way in
+    // rather than letting undefined fields reach the render code.
+    return migrate(parsed);
   }
 
   window.Docket.Storage = {
