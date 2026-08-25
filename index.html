@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="File-backed board and quick-capture task tracker. Offline, no accounts, no server.">
+<meta name="color-scheme" content="light dark">
+<title>DOCKET</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/svg+xml" href="icons/icon.svg">
+<link rel="apple-touch-icon" href="icons/icon-192.png">
+<meta name="theme-color" content="#0A0A0A">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Archivo+Black&family=JetBrains+Mono:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/theme.css">
+<link rel="stylesheet" href="css/layout.css">
+</head>
+<body>
+<noscript>
+  <div style="padding:2rem;font-family:monospace;background:#0A0A0A;color:#EAEAEA">
+    [ DOCKET REQUIRES JAVASCRIPT — NONE OF THIS RUNS WITHOUT IT ]
+  </div>
+</noscript>
+<div class="scanlines"></div>
+
+<div class="app-shell">
+
+  <header class="topbar">
+    <h1 class="logo">DOCKET</h1>
+    <div class="view-switch">
+      <button id="view-board-btn" class="active">BOARD</button>
+      <button id="view-archive-btn">ARCHIVE</button>
+    </div>
+    <div class="data-controls">
+      <button id="export-btn" title="Download a copy of everything as JSON">EXPORT</button>
+      <button id="import-btn" title="Load a previously exported JSON file">IMPORT</button>
+      <input type="file" id="import-file-input" accept="application/json,.json" hidden>
+    </div>
+    <button id="theme-toggle" title="Switch substrate" aria-label="Switch theme between light and dark">MODE</button>
+  </header>
+
+  <nav class="project-bar">
+    <div id="project-tabs" style="display:flex"></div>
+    <button id="new-project-btn">+ PROJECT</button>
+    <div id="project-popover" class="popover" hidden>
+      <div id="project-popover-list"></div>
+      <div class="popover-form">
+        <input type="text" id="new-project-name" placeholder="NAME">
+        <input type="color" id="new-project-color" value="#E61919">
+        <button id="project-popover-add">ADD</button>
+      </div>
+    </div>
+  </nav>
+
+  <div id="sync-strip" class="sync-strip" data-status="no-file">&gt;&gt;&gt; FILE ○ NOT CONNECTED</div>
+
+  <div id="reconnect-banner" class="banner" hidden>
+    <span>[ FILE PERMISSION LOST — DATA IS SAFE IN LOCAL MIRROR ]</span>
+    <button id="reconnect-btn">RECONNECT</button>
+  </div>
+
+  <div id="notif-banner" class="banner info" hidden>
+    <span>[ ENABLE NOTIFICATIONS FOR DUE-TIME REMINDERS ]</span>
+    <button id="notif-enable-btn">ENABLE</button>
+  </div>
+
+  <div class="banner info" id="no-file-banner">
+    <span>[ NOT WRITING TO A FILE YET — TASKS ARE SAVED LOCALLY. EXPORT ANYTIME, OR PICK A FILE BELOW TO MAKE IT THE SOURCE. ]</span>
+    <button id="connect-file-btn">USE EXISTING FILE</button>
+    <button id="new-file-btn">EXPORT &amp; USE AS SOURCE</button>
+  </div>
+
+  <div class="quick-add">
+    <span class="quick-add-prefix">&gt;&gt;&gt;</span>
+    <input type="text" id="quick-add-input" placeholder="ADD A TASK — PRESS ENTER" autocomplete="off">
+    <span class="quick-add-hint">N</span>
+  </div>
+
+  <main id="board" class="board">
+    <section class="column" id="col-todo" data-status="todo">
+      <div class="column-header">[ TO DO ]</div>
+    </section>
+    <section class="column" id="col-doing" data-status="doing">
+      <div class="column-header">[ IN PROGRESS ]</div>
+    </section>
+    <section class="column" id="col-done" data-status="done">
+      <div class="column-header">[ DONE ]</div>
+    </section>
+  </main>
+
+  <div id="archive-list" class="archive-list" hidden></div>
+
+</div>
+
+<div id="toast" class="toast" hidden role="status" aria-live="polite"></div>
+
+<div id="card-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-label="Task detail">
+  <div class="modal">
+    <div class="modal-header">
+      <span>&lt; TASK / DETAIL &gt;</span>
+      <button id="card-modal-close" aria-label="Close">×</button>
+    </div>
+    <div id="card-modal-body" class="modal-body"></div>
+  </div>
+</div>
+
+<script src="js/schema.js"></script>
+<script src="js/storage.js"></script>
+<script src="js/reminders.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>

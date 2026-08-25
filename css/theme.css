@@ -1,0 +1,69 @@
+/* DOCKET · THEME TOKENS
+ * · Swiss Industrial Print (light, default) and Tactical Telemetry (dark)
+ *   are the two archetypes from the brutalist skill — never blended in one
+ *   render. The toggle swaps the whole substrate via [data-theme].
+ * · Terminal green is reserved for exactly one element: the sync-strip
+ *   SYNCED dot. Nowhere else.
+ */
+
+:root {
+  --bg: #F4F4F0;
+  --bg-panel: #EAE8E3;
+  --fg: #0A0A0A;
+  --fg-dim: #4A4A46;
+  --border: #0A0A0A;
+  --accent: #E61919;
+  --green: #1C8A3B;
+  --font-macro: "Archivo Black", "Inter", sans-serif;
+  --font-micro: "JetBrains Mono", "IBM Plex Mono", monospace;
+}
+
+:root[data-theme="dark"] {
+  --bg: #0A0A0A;
+  --bg-panel: #121212;
+  --fg: #EAEAEA;
+  --fg-dim: #8A8A8A;
+  --border: #EAEAEA;
+  --accent: #FF2A2A;
+  --green: #4AF626;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  padding: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: var(--font-micro);
+}
+
+body {
+  min-height: 100vh;
+}
+
+::selection {
+  background: var(--accent);
+  color: var(--bg);
+}
+
+button, input, select {
+  font-family: inherit;
+  color: inherit;
+  background: transparent;
+  border: 1px solid var(--border);
+  border-radius: 0;
+}
+
+button {
+  cursor: pointer;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+button:hover {
+  background: var(--fg);
+  color: var(--bg);
+}
+
+a { color: var(--accent); }
