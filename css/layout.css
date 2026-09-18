@@ -224,6 +224,25 @@
 .sync-strip[data-status="synced"] { color: var(--fg); }
 .sync-strip[data-status="disconnected"]::before { background: var(--accent); }
 .sync-strip[data-status="disconnected"] { color: var(--accent); }
+/* A file that will not parse reads as loud as a disconnection, because it is
+   worse — the data on disk is unusable, not merely out of reach. */
+.sync-strip[data-status="corrupt"]::before { background: var(--accent); }
+.sync-strip[data-status="corrupt"] { color: var(--accent); }
+/* Transient, after a focus-refresh actually changed the board. */
+.sync-strip[data-status="merged"]::before { background: var(--green); }
+.sync-strip[data-status="merged"] { color: var(--green); }
+
+/* #db-strip is a <button> sharing .sync-strip's layout/colour rules — reset
+   the button chrome the browser adds on top of them. */
+.db-strip {
+  background: none;
+  border: none;
+  border-right: 1px solid var(--border-hair);
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+}
+.db-strip:hover { color: var(--fg); }
 
 /* Inline banners sit on the same rail — informational weight, not a slab */
 .banner {

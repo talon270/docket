@@ -19,6 +19,7 @@
     activeProjectId: "all",
     search: "",
     syncStatus: "no-file", // 'synced' | 'mirror-only' | 'disconnected' | 'no-file'
+    dbStatus: "no-db", // 'synced' | 'disconnected' | 'no-db' — independent of syncStatus, see PLAN-turso.md A2
   };
 
   const els = {};
@@ -40,6 +41,9 @@
       "card-modal", "card-modal-body", "notif-banner", "notif-enable-btn",
       "export-btn", "import-btn", "import-file-input", "toast",
       "view-agenda-btn", "search-input", "search-clear", "search-count",
+      "db-strip", "db-reconnect-banner", "no-db-banner", "open-db-modal-btn", "db-retry-btn",
+      "db-modal", "db-modal-close", "db-url-input", "db-token-input", "db-modal-error",
+      "db-modal-status", "db-connect-btn", "db-disconnect-btn",
     ].forEach((id) => (els[id] = $(id)));
   }
 
@@ -614,17 +618,49 @@
     });
   }
 
+  // A focus-refresh that changed the board says so, inline and briefly. Never
+  // a modal: this fires when you tab back to the window, which is the worst
+  // possible moment to be handed something to dismiss.
+  let remoteNoteTimer = null;
+  function showRemoteNote() {
+    const strip = els["sync-strip"];
+    strip.textContent = "Updated from another device";
+    strip.dataset.status = "merged";
+    clearTimeout(remoteNoteTimer);
+    remoteNoteTimer = setTimeout(renderSyncStrip, 4000);
+  }
+
   function renderSyncStrip() {
     const labels = {
-      synced: "Synced to file",
+      synced: "Synced to folder",
       "mirror-only": "Local only",
-      disconnected: "File disconnected",
+      disconnected: "Folder disconnected",
       "no-file": "Local only",
+      // A file that will not parse is a different problem from one that is
+      // merely disconnected, and the worse of the two. It gets its own label
+      // rather than hiding inside "disconnected".
+      corrupt: "File unreadable — using browser copy",
     };
     els["sync-strip"].textContent = labels[state.syncStatus];
     els["sync-strip"].dataset.status = state.syncStatus;
     els["reconnect-banner"].hidden = state.syncStatus !== "disconnected";
-    document.getElementById("no-file-banner").hidden = state.syncStatus === "synced";
+    document.getElementById("no-file-banner").hidden =
+      state.syncStatus === "synced" || state.syncStatus === "corrupt";
+  }
+
+  // Independent of renderSyncStrip — the database is a second, independent
+  // remote (PLAN-turso.md A2), never collapsed into one status word with the
+  // folder.
+  function renderDbStrip() {
+    const labels = {
+      synced: "Synced to database",
+      disconnected: "Database disconnected",
+      "no-db": "Database off",
+    };
+    els["db-strip"].textContent = labels[state.dbStatus];
+    els["db-strip"].dataset.status = state.dbStatus;
+    els["db-reconnect-banner"].hidden = state.dbStatus !== "disconnected";
+    els["no-db-banner"].hidden = state.dbStatus !== "no-db";
   }
 
   function render() {
@@ -637,6 +673,7 @@
 
     renderProjectTabs();
     renderSyncStrip();
+    renderDbStrip();
     renderTelemetry();
     renderSearchState();
     if (state.view === "board") renderBoard();
@@ -1229,6 +1266,83 @@
     });
   }
 
+  function dbError(msg) {
+    const el = els["db-modal-error"];
+    el.textContent = msg || "";
+    el.hidden = !msg;
+  }
+
+  function openDbModal() {
+    els["db-url-input"].value = "";
+    els["db-token-input"].value = "";
+    dbError("");
+    const configured = Storage.dbConfigured();
+    els["db-disconnect-btn"].hidden = !configured;
+    els["db-modal-status"].textContent = configured ? `Connected — ${state.dbStatus}` : "Not connected";
+    els["db-modal"].hidden = false;
+    els["db-url-input"].focus();
+  }
+
+  function closeDbModal() {
+    els["db-modal"].hidden = true;
+  }
+
+  async function submitDbConnect() {
+    const url = els["db-url-input"].value.trim();
+    const token = els["db-token-input"].value.trim();
+    // Inline message, never alert() — a typo should not cost a modal dismiss.
+    if (!url || !token) {
+      dbError("Enter both the database URL and the auth token.");
+      return;
+    }
+    els["db-connect-btn"].disabled = true;
+    try {
+      const merged = await Storage.connectDb(url, token, () => state.data);
+      state.data = merged;
+      sweepArchive(state.data);
+      Reminders.rescheduleAll(state.data.tasks);
+      closeDbModal();
+      render();
+      showToast("Connected to database");
+    } catch (err) {
+      dbError("Could not connect — check the URL and token.");
+      console.warn("[docket] turso connect failed", err);
+    } finally {
+      els["db-connect-btn"].disabled = false;
+    }
+  }
+
+  function submitDbDisconnect() {
+    Storage.disconnectDb();
+    state.dbStatus = "no-db";
+    closeDbModal();
+    render();
+    showToast("Database disconnected");
+  }
+
+  function wireDbModal() {
+    els["open-db-modal-btn"].addEventListener("click", openDbModal);
+    els["db-strip"].addEventListener("click", openDbModal);
+    els["db-modal-close"].addEventListener("click", closeDbModal);
+    els["db-modal"].addEventListener("click", (e) => {
+      if (e.target === els["db-modal"]) closeDbModal();
+    });
+    els["db-connect-btn"].addEventListener("click", submitDbConnect);
+    els["db-disconnect-btn"].addEventListener("click", submitDbDisconnect);
+    // A disconnected database has nothing to re-grant permission on — retry
+    // is just another debounced write attempt against the stored credential,
+    // the same one autosave already uses (no new retry-timer, per A4).
+    els["db-retry-btn"].addEventListener("click", () => Storage.autosave(state.data));
+    [els["db-url-input"], els["db-token-input"]].forEach((input) => {
+      input.addEventListener("keydown", (e) => {
+        if (e.key === "Enter") {
+          e.preventDefault();
+          submitDbConnect();
+        }
+      });
+    });
+  }
+
   function wireDataControls() {
     els["export-btn"].addEventListener("click", () => {
       Storage.exportDownload(state.data);
@@ -1274,6 +1388,10 @@
       state.syncStatus = status;
       renderSyncStrip();
     };
+    Storage.onDbStatus = (status) => {
+      state.dbStatus = status;
+      renderDbStrip();
+    };
 
     const { data, status } = await Storage.init();
     state.data = data;
@@ -1289,12 +1407,32 @@
     wireProjects();
     wireModal();
     wireReconnect();
+    wireDbModal();
     wireDataControls();
     wireNotifications();
 
     render();
     Reminders.rescheduleAll(state.data.tasks);
     setInterval(() => mutate(() => {}), SWEEP_INTERVAL_MS);
+
+    // Re-read the folder whenever this tab comes back to the front. Another
+    // machine may have written the file while you were away, and until now
+    // reconcile only ran at startup — so a tab left open all afternoon would
+    // write its stale board over the laptop's work on the next click.
+    //
+    // isBusy() holds the merge off while the card modal is open: a board that
+    // rearranges under the card you are editing is its own kind of surprise.
+    Storage.watch(
+      () => state.data,
+      (merged) => {
+        state.data = merged;
+        sweepArchive(state.data);
+        Reminders.rescheduleAll(state.data.tasks);
+        render();
+        showRemoteNote();
+      },
+      () => !els["card-modal"].hidden || !els["project-modal"].hidden || !els["db-modal"].hidden
+    );
 
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("service-worker.js").catch(() => {});

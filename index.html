@@ -87,10 +87,16 @@
 
   <div class="status-rail">
     <div id="sync-strip" class="sync-strip" data-status="no-file">Local only</div>
+    <button id="db-strip" class="sync-strip db-strip" type="button" data-status="no-db">Database off</button>
 
     <div id="reconnect-banner" class="banner alert" hidden>
       <span>File permission lost — your tasks are safe in the local mirror</span>
       <button id="reconnect-btn">Reconnect</button>
+    </div>
+
+    <div id="db-reconnect-banner" class="banner alert" hidden>
+      <span>Database unreachable — your tasks are safe in the local mirror</span>
+      <button id="db-retry-btn">Retry</button>
     </div>
 
     <div id="notif-banner" class="banner" hidden>
@@ -99,9 +105,14 @@
     </div>
 
     <div class="banner" id="no-file-banner">
-      <span>Saved in this browser. Connect a file to sync it to disk.</span>
-      <button id="connect-file-btn">Use existing file</button>
-      <button id="new-file-btn">Create file</button>
+      <span>Saved in this browser. Connect a folder to keep a copy on disk.</span>
+      <button id="connect-file-btn">Use existing folder</button>
+      <button id="new-file-btn">Set up folder</button>
+    </div>
+
+    <div class="banner" id="no-db-banner">
+      <span>Or sync through a Turso database instead of, or alongside, a folder.</span>
+      <button id="open-db-modal-btn">Connect database</button>
     </div>
   </div>
 
@@ -198,6 +209,34 @@
   </div>
 </div>
 
+<div id="db-modal" class="modal-overlay" hidden role="dialog" aria-modal="true" aria-label="Database sync">
+  <div class="modal">
+    <div class="modal-header">
+      <span>Database / Turso</span>
+      <button id="db-modal-close" aria-label="Close">&times;</button>
+    </div>
+    <div class="modal-body">
+      <p class="field-note">Kept only in this browser's storage — never written to docket.json or an export.</p>
+
+      <label>DATABASE URL
+        <input type="text" id="db-url-input" placeholder="libsql://your-db-org.turso.io" autocomplete="off">
+      </label>
+
+      <label>AUTH TOKEN
+        <input type="password" id="db-token-input" placeholder="PASTE TOKEN" autocomplete="off">
+      </label>
+
+      <p class="modal-error" id="db-modal-error" hidden></p>
+
+      <div class="modal-actions">
+        <span class="field-note" id="db-modal-status"></span>
+        <button type="button" id="db-connect-btn" class="btn-primary">Connect</button>
+        <button type="button" id="db-disconnect-btn" hidden>Disconnect</button>
+      </div>
+    </div>
+  </div>
+</div>
+
 <div id="tour" class="tour" hidden role="dialog" aria-modal="true" aria-label="Guided tour">
   <div id="tour-spot" class="tour-spot"></div>
   <div id="tour-card" class="tour-card">
@@ -214,6 +253,8 @@
   </div>
 </div>
 
+<script src="vendor/sync.js"></script>
+<script src="js/turso.js"></script>
 <script src="js/schema.js"></script>
 <script src="js/storage.js"></script>
 <script src="js/reminders.js"></script>

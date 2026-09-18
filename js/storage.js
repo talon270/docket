@@ -3,6 +3,13 @@
 //   mirror → rolling timestamped backups next to the file. Guard: never lose
 //   a task, so the mirror is written independently on every mutation, not as
 //   a cache of the file — it stays current even if the file write fails.
+// · Handles, permissions, file IO, backups, conflict detection and the
+//   focus-refresh live in vendor/sync.js, shared with the other apps. What
+//   stays here is what only Docket knows: the mirror, reconcile(), and the
+//   manual export/import path.
+// · Turso (js/turso.js) is a second, independent remote — folder and
+//   database each connect, sync and fail on their own. A database write
+//   failure never touches folder status, and vice versa (see PLAN-turso.md).
 // · Public surface: window.Docket.Storage
 "use strict";
 
@@ -11,45 +18,6 @@ window.Docket = window.Docket || {};
 (function () {
   const { SCHEMA_VERSION, makeFile, migrate } = window.Docket.Schema;
   const MIRROR_KEY = "docket.v1";
-  const DB_NAME = "docket-handles";
-  const DB_STORE = "handles";
-  const HANDLE_KEY = "file";
-  const BACKUP_KEEP = 10;
-
-  let fileHandle = null;
-  let dirHandle = null;
-  let writeTimer = null;
-
-  // ---- IndexedDB handle persistence -------------------------------------
-
-  function openHandleDB() {
-    return new Promise((resolve, reject) => {
-      const req = indexedDB.open(DB_NAME, 1);
-      req.onupgradeneeded = () => req.result.createObjectStore(DB_STORE);
-      req.onsuccess = () => resolve(req.result);
-      req.onerror = () => reject(req.error);
-    });
-  }
-
-  async function saveHandle(handle) {
-    const db = await openHandleDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(DB_STORE, "readwrite");
-      tx.objectStore(DB_STORE).put(handle, HANDLE_KEY);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    });
-  }
-
-  async function loadHandle() {
-    const db = await openHandleDB();
-    return new Promise((resolve, reject) => {
-      const tx = db.transaction(DB_STORE, "readonly");
-      const req = tx.objectStore(DB_STORE).get(HANDLE_KEY);
-      req.onsuccess = () => resolve(req.result || null);
-      req.onerror = () => reject(req.error);
-    });
-  }
 
   // ---- mirror -------------------------------------------------------------
 
@@ -67,30 +35,18 @@ window.Docket = window.Docket || {};
     }
   }
 
-  // ---- file read/write ----------------------------------------------------
-
-  async function readFile(handle) {
-    const file = await handle.getFile();
-    const text = await file.text();
-    if (!text.trim()) return makeFile();
-    return migrate(JSON.parse(text));
-  }
-
-  async function writeFile(handle, data) {
-    const writable = await handle.createWritable();
-    await writable.write(JSON.stringify(data, null, 2));
-    await writable.close();
-  }
-
   // ---- reconcile: most recent updatedAt per task/project wins -------------
+  //
+  // Docket's half of the merge, and the reason merge() is not in sync.js:
+  // only this file knows that a Docket document is two id-keyed lists.
 
   function reconcile(a, b) {
     if (!a) return b || makeFile();
     if (!b) return a;
     const merge = (listA, listB) => {
       const byId = new Map();
-      for (const item of listA) byId.set(item.id, item);
-      for (const item of listB) {
+      for (const item of listA || []) byId.set(item.id, item);
+      for (const item of listB || []) {
         const existing = byId.get(item.id);
         if (!existing || (item.updatedAt || item.createdAt) > (existing.updatedAt || existing.createdAt)) {
           byId.set(item.id, item);
@@ -105,73 +61,54 @@ window.Docket = window.Docket || {};
     };
   }
 
-  // ---- backups --------------------------------------------------------------
+  // ---- the shared sync layer ----------------------------------------------
 
-  async function writeBackup(data) {
-    if (!dirHandle) return;
-    try {
-      const backups = await dirHandle.getDirectoryHandle("backups", { create: true });
-      const stamp = new Date()
-        .toISOString()
-        .replace(/[:.]/g, "-")
-        .replace("T", "-")
-        .slice(0, 19);
-      const backupHandle = await backups.getFileHandle(`docket.backup-${stamp}.json`, { create: true });
-      await writeFile(backupHandle, data);
+  const sync = window.Sync.create({
+    appId: "docket",
+    fileName: "docket.json",
+    dbName: "docket-handles",
+    backupPrefix: "docket.backup-",
+    // 400ms rather than the shared default: the quick-add bar is built for
+    // capturing a task per keystroke, so the window between two adds is
+    // genuinely short and a slower debounce would feel like lag on the strip.
+    writeDebounceMs: 400,
+    merge: reconcile,
+    parse: (text) => migrate(JSON.parse(text)),
+    onStatus: (s) => window.Docket.Storage.onSyncStatus?.(toAppStatus(s)),
+  });
 
-      const names = [];
-      for await (const [name] of backups.entries()) names.push(name);
-      names.sort();
-      const excess = names.length - BACKUP_KEEP;
-      for (let i = 0; i < excess; i++) await backups.removeEntry(names[i]);
-    } catch (err) {
-      console.warn("[docket] backup write failed", err);
-    }
+  const dbSync = window.Docket.TursoSync.create({
+    merge: reconcile,
+    parse: (text) => migrate(JSON.parse(text)),
+    writeDebounceMs: 400,
+    onStatus: (s) => window.Docket.Storage.onDbStatus?.(s),
+  });
+
+  // sync.js speaks in folders; Docket's UI has always spoken in files. Map
+  // rather than rename, so the strip keeps saying what the user already
+  // learned it means. "corrupt" is passed through as itself — a file that
+  // will not parse is not the same problem as one that is disconnected, and
+  // showing them with one label would hide the worse of the two.
+  function toAppStatus(s) {
+    if (s === "no-folder") return "no-file";
+    return s;
   }
 
-  // ---- connect / autosave ---------------------------------------------------
+  // ---- connect ------------------------------------------------------------
 
-  async function connectExistingFile() {
-    const [handle] = await window.showOpenFilePicker({
-      types: [{ description: "Docket file", accept: { "application/json": [".json"] } }],
-    });
-    fileHandle = handle;
-    dirHandle = null; // directory handle not exposed by showOpenFilePicker; backups skipped until createNewFile flow
-    await saveHandle(handle);
-    return handle;
+  function connectExistingFile() {
+    return sync.connect({ create: false });
   }
 
-  async function createNewFile() {
-    const handle = await window.showSaveFilePicker({
-      suggestedName: "docket.json",
-      types: [{ description: "Docket file", accept: { "application/json": [".json"] } }],
-    });
-    fileHandle = handle;
-    await saveHandle(handle);
-    return handle;
+  function createNewFile() {
+    return sync.connect({ create: true });
   }
 
-  function debounce(fn, ms) {
-    return (...args) => {
-      clearTimeout(writeTimer);
-      writeTimer = setTimeout(() => fn(...args), ms);
-    };
+  async function requestReconnect() {
+    return toAppStatus(await sync.reconnect());
   }
 
-  const writeFileDebounced = debounce(async (data) => {
-    if (fileHandle) {
-      try {
-        await writeFile(fileHandle, data);
-        await writeBackup(data);
-        window.Docket.Storage.onSyncStatus?.("synced");
-      } catch (err) {
-        console.warn("[docket] file write failed", err);
-        window.Docket.Storage.onSyncStatus?.("disconnected");
-      }
-    } else {
-      window.Docket.Storage.onSyncStatus?.("mirror-only");
-    }
-  }, 400);
+  // ---- autosave -----------------------------------------------------------
 
   // Mirror write is synchronous and unconditional on every call — it is the
   // "never lose a task" guard, so it cannot ride the same debounce as the
@@ -180,41 +117,82 @@ window.Docket = window.Docket || {};
   // the more expensive of the two, is batched.
   function autosave(data) {
     saveMirror(data);
-    writeFileDebounced(data);
+    if (sync.hasFile()) sync.save(data);
+    else window.Docket.Storage.onSyncStatus?.("mirror-only");
+    if (dbSync.configured()) dbSync.save(data);
+  }
+
+  // Pulls Turso in against whatever the folder/mirror settled on, and pushes
+  // the result back to Turso. Used at boot and right after a live "Connect
+  // database" — same merge, so a database that already has another device's
+  // data behaves identically whether you connected at launch or mid-session.
+  async function mergeDb(data) {
+    const dbR = await dbSync.init(() => data);
+    let merged = data;
+    if (dbR.status === "synced") {
+      if (dbR.data) {
+        merged = dbR.data;
+        saveMirror(merged);
+      }
+      await dbSync.flush(merged);
+    }
+    window.Docket.Storage.onDbStatus?.(dbR.status);
+    return { data: merged, from: dbR.from || null };
   }
 
   async function init() {
-    const handle = await loadHandle().catch(() => null);
-    if (!handle) {
+    const r = await sync.init(() => loadMirror());
+
+    if (r.status === "corrupt") {
+      // Keep running on the mirror and say so. Writing over the file here
+      // would destroy the only evidence of what went wrong.
+      const data = loadMirror() || makeFile();
+      saveMirror(data);
+      console.warn("[docket] file will not parse — staying on the browser copy", r.error);
+      return { data, status: "corrupt" };
+    }
+
+    let data;
+    let folderStatus;
+    if (r.status !== "synced") {
       // Persist the migrated shape immediately. Without this the mirror keeps
       // its pre-migration form until the first edit, so opening and closing
       // the app would leave an old-schema copy on disk indefinitely.
-      const data = loadMirror() || makeFile();
+      data = loadMirror() || makeFile();
       saveMirror(data);
-      return { data, status: "no-file" };
-    }
-    fileHandle = handle;
-    const perm = await handle.queryPermission({ mode: "readwrite" }).catch(() => "denied");
-    if (perm !== "granted") {
-      const data = loadMirror() || makeFile();
+      folderStatus = toAppStatus(r.status);
+    } else {
+      data = r.data || loadMirror() || makeFile();
       saveMirror(data);
-      return { data, status: "disconnected" };
+      await sync.writeNow(data);
+      folderStatus = "synced";
     }
-    const fileData = await readFile(handle).catch(() => null);
-    const mirrorData = loadMirror();
-    const reconciled = reconcile(fileData, mirrorData);
-    saveMirror(reconciled);
-    await writeFile(handle, reconciled).catch(() => {});
-    return { data: reconciled, status: "synced" };
+
+    // Turso is independent of the folder outcome — a folder that is
+    // disconnected or absent must never block the database merge.
+    const dbResult = await mergeDb(data);
+    data = dbResult.data;
+    if (folderStatus === "synced" && dbResult.from) await sync.writeNow(data);
+
+    return { data, status: folderStatus, mergedFrom: r.from || dbResult.from || null };
   }
 
-  async function requestReconnect() {
-    const handle = await loadHandle().catch(() => null);
-    if (!handle) return "no-file";
-    const perm = await handle.requestPermission({ mode: "readwrite" }).catch(() => "denied");
-    if (perm !== "granted") return "disconnected";
-    fileHandle = handle;
-    return "synced";
+  // ---- refresh on focus ---------------------------------------------------
+  //
+  // A tab left open on this machine has no idea another machine wrote the
+  // file. Without this its next autosave writes stale state over fresh, which
+  // is the exact failure reconcile() exists to prevent — and reconcile only
+  // ran at startup until now.
+
+  function watch(getLocal, apply, isBusy) {
+    sync.watch(getLocal, (merged) => {
+      saveMirror(merged);
+      apply(merged);
+    }, isBusy);
+    dbSync.watch(getLocal, (merged) => {
+      saveMirror(merged);
+      apply(merged);
+    }, isBusy);
   }
 
   // ---- manual export / import ----------------------------------------------
@@ -250,16 +228,47 @@ window.Docket = window.Docket || {};
     return migrate(parsed);
   }
 
+  // Connecting mid-session runs the same folder-independent merge boot() runs
+  // at init() — a database that already has another device's data behaves
+  // the same whether you connected at launch or from the credentials modal.
+  async function connectDb(url, token, getLocal) {
+    await dbSync.connect(url, token); // throws on a bad url/token — the modal shows it
+    const result = await mergeDb(getLocal());
+    return result.data;
+  }
+
+  function disconnectDb() {
+    dbSync.forget();
+  }
+
   window.Docket.Storage = {
     init,
     autosave,
+    watch,
     connectExistingFile,
     createNewFile,
     requestReconnect,
     exportDownload,
     importFromFile,
     reconcile,
-    hasFileHandle: () => !!fileHandle,
+    connectDb,
+    disconnectDb,
+    dbConfigured: () => dbSync.configured(),
+    dbInfo: () => dbSync.info(),
+    // Exposed for the Hub and for tests: a refresh that can be asked for
+    // rather than only triggered by focus.
+    refresh: (getLocal, apply) =>
+      sync.refresh(getLocal, (merged) => {
+        saveMirror(merged);
+        apply(merged);
+      }),
+    flush: (data) => sync.flush(data),
+    hasFileHandle: () => sync.hasFile(),
+    hasDirHandle: () => sync.hasDir(),
+    deviceId: () => sync.deviceId(),
+    info: () => sync.info(),
+    listConflicts: () => sync.listConflicts(),
     onSyncStatus: null, // set by app.js
+    onDbStatus: null, // set by app.js
   };
 })();

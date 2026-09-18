@@ -5,12 +5,14 @@
 
 // Bump on every shell change — an old cache would keep serving stale CSS/JS
 // to anyone who already loaded the site.
-const CACHE = "docket-shell-v7";
+const CACHE = "docket-shell-v9";
 const SHELL = [
   "./",
   "./index.html",
   "./css/theme.css",
   "./css/layout.css",
+  "./vendor/sync.js",
+  "./js/turso.js",
   "./js/schema.js",
   "./js/storage.js",
   "./js/reminders.js",

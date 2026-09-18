@@ -3,8 +3,8 @@
 A task board you can open dozens of times a day. Three columns — To do, In
 progress, Done — a quick-add bar for capturing a task in one keystroke, and
 projects to group things by. No account, no server: everything lives in your
-browser, and you can optionally point it at a file on your computer to keep
-a real copy on disk.
+browser, and you can optionally point it at a folder on your computer to keep
+a real copy on disk, with rolling backups beside it.
 
 Live at **[talon270.github.io/docket](https://talon270.github.io/docket/)**.
 
@@ -110,12 +110,20 @@ sturdier:
 
 - **Export** — downloads a copy of everything as a `.json` file. Good for a
   manual backup, or moving your tasks to a different computer.
-- **Use existing file / Create file** — links Docket to an actual file on
-  your disk. From then on, every change is saved to that file automatically
-  (plus your browser keeps its own copy too, so nothing is ever staked on
-  one save succeeding). If the connection to the file ever drops — say, you
-  restarted your browser — a banner tells you, and your tasks are still safe
-  in the browser copy until you reconnect.
+- **Use existing folder / Set up folder** — links Docket to a folder on your
+  disk, where it keeps `docket.json`. From then on, every change is saved to
+  that file automatically (plus your browser keeps its own copy too, so
+  nothing is ever staked on one save succeeding). If the connection ever
+  drops — say, you restarted your browser — a banner tells you, and your
+  tasks are still safe in the browser copy until you reconnect.
+
+  **Docket asks for the folder, not the file, and that is the point.** A file
+  picker hands back the file with no way to reach the folder it sits in, so
+  the rolling backups had nothing to write into and silently never ran. One
+  folder grant gives both. Inside it you get `backups/`, holding the last ten
+  snapshots — spaced at least five minutes apart, because ten copies taken
+  during one burst of typing would satisfy the counter while protecting
+  nothing and evicting the older states worth keeping.
 - **Import** — loads a `.json` file back in. It merges with whatever's
   already there rather than replacing it, so importing an old backup can't
   accidentally erase newer tasks.
@@ -123,6 +131,41 @@ sturdier:
 This file-connection feature only works in Chrome (or a Chrome-based
 browser like Edge or Brave) — it's not available in Firefox or Safari.
 Everything else on this page works in any browser.
+
+## Syncing through a database instead
+
+Click **Database off** on the status rail (or **Connect database**) to sync
+through a [Turso](https://turso.tech) database instead of, or alongside, a
+shared folder. This is the option for two machines that don't share a
+filesystem — a laptop and a phone, or two computers on different networks.
+Create a free-tier database at [turso.tech/app](https://turso.tech/app),
+paste its URL and an auth token into the modal, and every device pointed at
+the same database merges into the same board.
+
+- **Docket never loads a client library for this — a database write is one
+  `fetch()` call.** Turso's HTTP endpoint (`{url}/v2/pipeline`) sends a
+  wildcard CORS header on both the preflight and the real request, confirmed
+  against a live database before writing a line of this — see
+  `PLAN-turso.md`. That's the whole reason there's no CDN import here despite
+  every guide showing one: the official browser client exists for
+  convenience, not necessity, and skipping it keeps this app's zero-runtime-
+  dependency rule intact.
+- **The folder and the database are two independent remotes, not one sync
+  status.** You can be connected to a folder, a database, both, or neither,
+  and each fails on its own — a wrong database token never marks the folder
+  disconnected, and a lost folder permission never touches the database
+  strip. That's why there are two status labels on the rail instead of one.
+- **The credential lives only in this browser's `localStorage`.** It is never
+  written into `docket.json`, never included in an export, and never sent
+  anywhere but that one database. Anyone who gets the URL and token can read
+  and write your tasks, so treat them like a password — Disconnect, in the
+  same modal, clears them from this browser without touching what's stored
+  in Turso.
+- **Same merge as the folder, same guarantee.** The database holds one JSON
+  row, and every device applies the identical `reconcile()` — most recent
+  `updatedAt` per task or project wins. There's no separate conflict-file
+  concept to reason about, because there's no filesystem sync tool underneath
+  to produce one.
 
 ## Light and dark
 
