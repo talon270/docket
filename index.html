@@ -178,6 +178,7 @@
       <button id="project-modal-close" aria-label="Close">&times;</button>
     </div>
     <div class="modal-body">
+      <form autocomplete="off" onsubmit="return false">
       <label>NAME
         <input type="text" id="new-project-name" placeholder="ASHOKA" autocomplete="off" maxlength="40">
       </label>
@@ -200,6 +201,7 @@
         <span class="field-note">Tasks keep their project until you delete it</span>
         <button type="button" id="project-modal-add" class="btn-primary">Add project</button>
       </div>
+      </form>
 
       <div class="project-list-block">
         <div class="modal-subhead">Existing projects</div>
@@ -218,12 +220,13 @@
     <div class="modal-body">
       <p class="field-note">Kept only in this browser's storage — never written to docket.json or an export.</p>
 
+      <form autocomplete="off" onsubmit="return false">
       <label>DATABASE URL
         <input type="text" id="db-url-input" placeholder="libsql://your-db-org.turso.io" autocomplete="off">
       </label>
 
       <label>AUTH TOKEN
-        <input type="password" id="db-token-input" placeholder="PASTE TOKEN" autocomplete="off">
+        <input type="password" id="db-token-input" placeholder="PASTE TOKEN" autocomplete="new-password">
       </label>
 
       <p class="modal-error" id="db-modal-error" hidden></p>
@@ -233,6 +236,7 @@
         <button type="button" id="db-connect-btn" class="btn-primary">Connect</button>
         <button type="button" id="db-disconnect-btn" hidden>Disconnect</button>
       </div>
+      </form>
     </div>
   </div>
 </div>
