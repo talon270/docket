@@ -113,7 +113,8 @@ the card modal.
 ### B8 · Keyboard status changes
 
 Cards get `tabindex="0"`. With a card focused: `1` / `2` / `3` set To do /
-In progress / Done, `Enter` opens it, `Delete` removes it (undoable via B3).
+In progress / Done, `Enter` opens it. ~~`Delete` removes it (undoable via B3).~~
+Never built; struck 2026-09-28 (PLAN-audit N6) — deleting stays in the panel.
 Focus is preserved across the re-render so repeated keys work.
 
 ### B9 · Manual ordering

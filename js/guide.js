@@ -71,6 +71,9 @@
   let index = 0;
   let active = false;
   let restoreFocus = null;
+  // The tour switches views to show each part; it hands back the one you
+  // were on rather than always ending on the board (N5).
+  let restoreView = null;
 
   const $ = (id) => document.getElementById(id);
 
@@ -160,6 +163,7 @@
     active = true;
     index = 0;
     restoreFocus = document.activeElement;
+    restoreView = window.Docket.App.currentView();
     $("tour").hidden = false;
     document.addEventListener("keydown", onKeydown, true);
     window.addEventListener("resize", onResize);
@@ -172,6 +176,7 @@
     if (!active) return;
     const leaving = STEPS[index];
     if (leaving.onExit) leaving.onExit();
+    window.Docket.App.goToView(restoreView);
     active = false;
     $("tour").hidden = true;
     document.removeEventListener("keydown", onKeydown, true);

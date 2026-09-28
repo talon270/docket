@@ -5,7 +5,7 @@
 
 // Bump on every shell change — an old cache would keep serving stale CSS/JS
 // to anyone who already loaded the site.
-const CACHE = "docket-shell-v12";
+const CACHE = "docket-shell-v13";
 const SHELL = [
   "./",
   "./index.html",

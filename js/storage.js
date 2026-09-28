@@ -309,11 +309,11 @@ window.Docket = window.Docket || {};
   function exportDownload(data) {
     const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
-    const stamp = new Date()
-      .toISOString()
-      .replace(/[:.]/g, "-")
-      .replace("T", "-")
-      .slice(0, 19);
+    // Local time, as todayKey() does. The UTC stamp named a 01:30 IST export
+    // after the previous day (C6).
+    const d = new Date();
+    const p = (n) => String(n).padStart(2, "0");
+    const stamp = `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}-${p(d.getHours())}-${p(d.getMinutes())}-${p(d.getSeconds())}`;
     const a = document.createElement("a");
     a.href = url;
     a.download = `docket-export-${stamp}.json`;
