@@ -21,7 +21,7 @@
   left: 0;
   z-index: var(--z-tour);
   transform: translateY(-120%);
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
   padding: 0.7rem 1.1rem;
   font-size: 0.66rem;
@@ -134,7 +134,7 @@
   border-color: var(--accent);
   color: var(--accent);
 }
-.guide-btn:hover { background: var(--accent); color: #fff; }
+.guide-btn:hover { background: var(--accent-fill); color: #fff; }
 .guide-mark {
   width: 15px;
   height: 15px;
@@ -186,7 +186,7 @@
   margin-left: auto;
   color: var(--accent);
 }
-#new-project-btn:hover { background: var(--accent); color: #fff; }
+#new-project-btn:hover { background: var(--accent-fill); color: #fff; }
 
 .swatch { width: 12px; height: 12px; display: inline-block; }
 .btn-icon { font-size: 0.58rem; padding: 0.22rem 0.45rem; }
@@ -238,8 +238,11 @@
   background: none;
   border: none;
   border-right: 1px solid var(--border-hair);
-  font: inherit;
-  letter-spacing: inherit;
+  /* Not font: inherit — that took the rail's 14 px, and the global button
+     rule's uppercase, where the folder strip beside it is 0.6rem sentence
+     case (C5). */
+  font-family: inherit;
+  text-transform: none;
   cursor: pointer;
 }
 .db-strip:hover { color: var(--fg); }
@@ -267,12 +270,12 @@
 
 /* Only a genuine problem earns the hazard treatment */
 .banner.alert {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
-  border-left-color: var(--accent);
+  border-left-color: var(--accent-fill);
 }
 .banner.alert button { border-color: rgba(255,255,255,0.55); }
-.banner.alert button:hover { background: #fff; color: var(--accent); }
+.banner.alert button:hover { background: #fff; color: var(--accent-fill); }
 
 /* ---- quick add --------------------------------------------------------- */
 
@@ -408,7 +411,9 @@
   cursor: grab;
   position: relative;
   transition: transform 130ms ease-out, box-shadow 130ms ease-out, background 130ms linear;
-  animation: card-in 220ms ease-out both;
+  /* backwards, not both: a forwards fill pins transform: none after the
+     animation ends and the hover lift never applied (C2). */
+  animation: card-in 220ms ease-out backwards;
 }
 
 @keyframes card-in {
@@ -444,9 +449,9 @@
   color: var(--fg-dim);
 }
 .pill-high {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
-  border-color: var(--accent);
+  border-color: var(--accent-fill);
   font-weight: 700;
 }
 .pill-med { color: var(--fg); border-color: var(--border-hair); }
@@ -457,9 +462,9 @@
   color: var(--fg);
 }
 .pill-overdue {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #fff;
-  border-color: var(--accent);
+  border-color: var(--accent-fill);
   font-weight: 700;
 }
 
@@ -709,7 +714,7 @@
 .subtask-row input[type="text"] { padding: 0.35rem; font-size: 0.78rem; }
 .subtask-row input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; }
 .sub-remove { border: none; font-size: 1rem; padding: 0 0.4rem; color: var(--fg-dim); }
-.sub-remove:hover { background: var(--accent); color: #fff; }
+.sub-remove:hover { background: var(--accent-fill); color: #fff; }
 
 .btn-secondary {
   align-self: flex-start;
@@ -726,7 +731,7 @@
   border-top: 2px solid var(--border);
 }
 .btn-danger { border-color: var(--accent); color: var(--accent); padding: 0.5rem 0.9rem; font-size: 0.62rem; }
-.btn-danger:hover { background: var(--accent); color: #fff; }
+.btn-danger:hover { background: var(--accent-fill); color: #fff; }
 .btn-primary {
   background: var(--fg);
   color: var(--bg);
@@ -734,7 +739,7 @@
   font-size: 0.62rem;
   font-weight: 700;
 }
-.btn-primary:hover { background: var(--accent); border-color: var(--accent); color: #fff; }
+.btn-primary:hover { background: var(--accent-fill); border-color: var(--accent-fill); color: #fff; }
 
 /* ---- project modal -------------------------------------------------------- */
 
@@ -828,7 +833,7 @@
   from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: none; }
 }
-.toast.toast-error { background: var(--accent); border-color: var(--accent); color: #fff; }
+.toast.toast-error { background: var(--accent-fill); border-color: var(--accent-fill); color: #fff; }
 
 /* ---- CRT scanlines: dark substrate only ---------------------------------- */
 
@@ -886,7 +891,7 @@
   color: var(--fg-dim);
   flex: none;
 }
-#search-clear:hover { background: var(--accent); color: #fff; }
+#search-clear:hover { background: var(--accent-fill); color: #fff; }
 
 /* ---- agenda --------------------------------------------------------------- */
 
@@ -1017,7 +1022,7 @@
 }
 .toast-action:hover { background: var(--bg); color: var(--fg); }
 .toast-error .toast-action { border-color: #fff; color: #fff; }
-.toast-error .toast-action:hover { background: #fff; color: var(--accent); }
+.toast-error .toast-action:hover { background: #fff; color: var(--accent-fill); }
 
 .card:focus-visible {
   outline: 2px solid var(--accent);
@@ -1132,7 +1137,32 @@
     grid-template-columns: 1fr auto;
     gap: 0.75rem 1rem;
   }
+  /* Three rows, not five: at 390 px the first card started 70% of the way
+     down the screen (A23). Theme beside the wordmark, the data controls and
+     Guide sharing a row. */
   .logo { grid-column: 1; }
-  #theme-toggle { grid-column: 2; }
-  .view-switch, .data-controls, .guide-btn { grid-column: span 2; }
+  #theme-toggle { grid-column: 2; grid-row: 1; }
+  .view-switch { grid-column: span 2; }
+  .data-controls { grid-column: 1; }
+  .guide-btn { grid-column: 2; }
+  /* Search gets its own row above the tabs. Inside the scrolling tab row it
+     sat past the right edge, behind 124 px of hidden overflow; only the tabs
+     scroll now. */
+  .project-bar { flex-wrap: wrap; }
+  /* The min-width is what sends the tabs to the second line: with flex: 1's
+     zero basis alone they fitted beside the search box at 0 px wide. */
+  #project-tabs { flex: 1; min-width: 50%; overflow-x: auto; scrollbar-width: none; }
+  .search-box {
+    order: -1;
+    flex: 1 0 100%;
+    margin-left: 0;
+    border-left: none;
+    border-right: none;
+    border-bottom: 1px solid var(--border-hair);
+  }
+}
+
+/* No keyboard, no N shortcut to advertise. */
+@media (pointer: coarse) {
+  .quick-add-hint { display: none; }
 }

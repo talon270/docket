@@ -5,7 +5,7 @@
 
 // Bump on every shell change — an old cache would keep serving stale CSS/JS
 // to anyone who already loaded the site.
-const CACHE = "docket-shell-v11";
+const CACHE = "docket-shell-v12";
 const SHELL = [
   "./",
   "./index.html",
@@ -20,6 +20,8 @@ const SHELL = [
   "./js/guide.js",
   "./manifest.webmanifest",
   "./404.html",
+  "./fonts/archivo-black-latin-400.woff2",
+  "./fonts/jetbrains-mono-latin-wght.woff2",
 ];
 
 self.addEventListener("install", (e) => {

@@ -8,6 +8,23 @@
  * · Terminal green is reserved for exactly one thing: the SYNCED dot.
  */
 
+/* Self-hosted, Latin subset, OFL (licences in fonts/). Google Fonts was the one
+   third-party request a load made, and offline the wordmark fell back to Arial
+   (A17). A glyph outside the subset — ₹, Devanagari — falls through to the
+   next family in the stack, per character. */
+@font-face {
+  font-family: "Archivo Black";
+  src: url("../fonts/archivo-black-latin-400.woff2") format("woff2");
+  font-weight: 400;
+  font-display: swap;
+}
+@font-face {
+  font-family: "JetBrains Mono";
+  src: url("../fonts/jetbrains-mono-latin-wght.woff2") format("woff2");
+  font-weight: 100 800;
+  font-display: swap;
+}
+
 :root {
   /* Swiss Industrial Print — unbleached documentation paper */
   --bg: #F2F1EC;
@@ -19,6 +36,10 @@
   --border: #0A0A0A;
   --border-hair: rgba(10, 10, 10, 0.22);
   --accent: #E61919;
+  /* Every fill that carries white text. Not redefined for dark: dark's
+     brighter --accent is 3.74:1 under white at 9 px, this is 4.65:1 (C4).
+     --accent stays the colour for red text and marks on a dark ground. */
+  --accent-fill: #E61919;
   --green: #1C8A3B;
   --shadow-hard: rgba(10, 10, 10, 1);
   --grid-line: rgba(10, 10, 10, 0.055);
@@ -100,7 +121,7 @@ body {
 }
 
 ::selection {
-  background: var(--accent);
+  background: var(--accent-fill);
   color: #FFFFFF;
 }
 
