@@ -678,7 +678,10 @@
   flex-direction: column;
   gap: 1.05rem;
 }
-.modal-body label {
+/* A div, not a label, where the group holds several controls: a label
+   forwards a click on its text to the first one it contains (C1). */
+.modal-body label,
+.modal-body .field-group {
   display: flex;
   flex-direction: column;
   gap: 0.35rem;

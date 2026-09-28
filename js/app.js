@@ -837,10 +837,10 @@
         <textarea id="f-notes" rows="3" placeholder="Links, room numbers, what the task actually asks for">${escapeHtml(task.notes || "")}</textarea>
       </label>
 
-      <label>SUBTASKS
+      <div class="field-group">SUBTASKS
         <div id="f-subtasks"></div>
         <button type="button" id="f-add-subtask" class="btn-secondary">+ Subtask</button>
-      </label>
+      </div>
       <div class="modal-actions">
         <button type="button" id="f-delete" class="btn-danger">Delete</button>
         <button type="button" id="f-save" class="btn-primary">Save</button>
@@ -919,36 +919,44 @@
     body.querySelector("#f-date").addEventListener("change", paintRepeatNote);
     paintRepeatNote();
 
-    body.querySelector("#f-save").addEventListener("click", () => {
+    // Every way out of the panel saves — Escape, the backdrop, × and Save
+    // alike. Capture has already committed the task by the time this opens,
+    // so there is nothing to cancel, and a reflexive Escape used to throw
+    // away a typed note and due date without a word (A19).
+    function saveCard() {
+      const t = state.data.tasks.find((x) => x.id === taskId);
+      if (!t) return; // Delete removes the task before it closes the panel
+      const every = everySel.value;
+      const next = {
+        title: body.querySelector("#f-title").value.trim() || t.title,
+        projectId: body.querySelector("#f-project").value || null,
+        priority: body.querySelector("#f-priority").value,
+        dueDate: body.querySelector("#f-date").value || null,
+        dueTime: body.querySelector("#f-time").value || null,
+        notes: body.querySelector("#f-notes").value,
+        subtasks: localSubtasks.filter((s) => s.title.trim()),
+        recurrence: every ? { every, interval: Math.max(1, Math.min(99, +intervalInput.value || 1)) } : null,
+      };
+      // Keep the monthly anchor through an ordinary Save of the 02-28
+      // occurrence, or the series re-anchors on the 28th (A24). A changed
+      // due date is a new anchor, which applyStatus takes from the date.
+      if (every === "month" && t.recurrence?.day && next.dueDate === t.dueDate) next.recurrence.day = t.recurrence.day;
+      // Only a real change is written. updatedAt decides the merge, so a
+      // card merely opened and closed must not stamp a stale copy over
+      // another device's edit (A4's failure, by a different door).
+      const same = (k) => JSON.stringify(next[k]) === JSON.stringify(t[k]);
+      if (pendingStatus === t.status && Object.keys(next).every(same)) return;
       mutate((d) => {
-        const t = d.tasks.find((x) => x.id === taskId);
-        const prevDue = t.dueDate;
-        const prevDay = t.recurrence?.day;
-        t.title = body.querySelector("#f-title").value.trim() || t.title;
-        t.projectId = body.querySelector("#f-project").value || null;
-        t.priority = body.querySelector("#f-priority").value;
-        t.dueDate = body.querySelector("#f-date").value || null;
-        t.dueTime = body.querySelector("#f-time").value || null;
-        t.notes = body.querySelector("#f-notes").value;
-        t.subtasks = localSubtasks.filter((s) => s.title.trim());
-        const every = everySel.value;
-        t.recurrence = every
-          ? { every, interval: Math.max(1, Math.min(99, +intervalInput.value || 1)) }
-          : null;
-        // Keep the monthly anchor through an ordinary Save of the 02-28
-        // occurrence, or the series re-anchors on the 28th (A24). A changed
-        // due date is a new anchor, which applyStatus takes from the date.
-        if (every === "month" && prevDay && t.dueDate === prevDue) t.recurrence.day = prevDay;
-        t.updatedAt = nowIso();
-
-        // Status last: applyStatus reads the recurrence and due date we just
-        // wrote, so completing and setting a repeat in one save spawns the
+        Object.assign(d.tasks.find((x) => x.id === taskId), next, { updatedAt: nowIso() });
+        // Status last: applyStatus reads the recurrence and due date just
+        // written, so completing and setting a repeat in one save spawns the
         // next occurrence from the new values rather than the old ones.
         applyStatus(d, taskId, pendingStatus);
-        Reminders.schedule(d.tasks.find((x) => x.id === taskId));
       });
-      closeModal();
-    });
+    }
+    closeCard = saveCard;
+
+    body.querySelector("#f-save").addEventListener("click", closeModal);
 
     body.querySelector("#f-delete").addEventListener("click", () => {
       const index = state.data.tasks.findIndex((x) => x.id === taskId);
@@ -980,11 +988,33 @@
       });
     });
 
+    // Focus moves into the panel, or the card that was clicked keeps it and
+    // 1/2/3 act on the board behind (A16). It goes back where it came from on
+    // close — the same card after its re-render, or the quick-add bar.
+    returnFocus = document.activeElement?.closest?.(".card") ? taskId : document.activeElement;
     modal.hidden = false;
+    body.querySelector("#f-title").focus();
   }
 
+  // Set while the task panel is open: the save that closing it runs.
+  let closeCard = null;
+  let returnFocus = null;
+
   function closeModal() {
+    const save = closeCard;
+    closeCard = null;
+    if (save) save();
     els["card-modal"].hidden = true;
+    const back = returnFocus;
+    returnFocus = null;
+    if (typeof back === "string") refocusTask(back);
+    else if (back?.isConnected) back.focus();
+  }
+
+  // Board shortcuts (N, 1/2/3, Enter on a card) stand down while any panel
+  // is open — they belong to the board, not to whatever is on top of it.
+  function modalOpen() {
+    return !!document.querySelector(".modal-overlay:not([hidden])");
   }
 
   // ---- project management ------------------------------------------------------
@@ -1076,13 +1106,14 @@
     document.addEventListener("keydown", (e) => {
       const tag = document.activeElement.tagName;
       const typing = tag === "INPUT" || tag === "TEXTAREA" || tag === "SELECT";
-      if (e.key === "n" && !typing) {
+      if (e.key === "n" && !typing && !modalOpen()) {
         e.preventDefault();
         input.focus();
       }
       if (e.key === "Escape") {
         closeModal();
         closeProjectModal();
+        closeDbModal();
       }
     });
   }
@@ -1193,7 +1224,7 @@
 
     document.addEventListener("keydown", (e) => {
       const card = document.activeElement?.closest?.(".card");
-      if (!card) return;
+      if (!card || modalOpen()) return;
       const id = card.dataset.id;
 
       if (KEY_STATUS[e.key]) {
