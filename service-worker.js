@@ -5,7 +5,7 @@
 
 // Bump on every shell change — an old cache would keep serving stale CSS/JS
 // to anyone who already loaded the site.
-const CACHE = "docket-shell-v9";
+const CACHE = "docket-shell-v10";
 const SHELL = [
   "./",
   "./index.html",
@@ -23,7 +23,10 @@ const SHELL = [
 ];
 
 self.addEventListener("install", (e) => {
-  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL)));
+  // cache: "reload" skips the HTTP cache. GitHub Pages sends max-age=600, so
+  // a plain addAll within ten minutes of the last visit filled the new cache
+  // with the previous deploy's files and pinned them there (A21).
+  e.waitUntil(caches.open(CACHE).then((c) => c.addAll(SHELL.map((u) => new Request(u, { cache: "reload" })))));
   self.skipWaiting();
 });
 

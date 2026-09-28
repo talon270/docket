@@ -6,7 +6,7 @@
 "use strict";
 
 (function () {
-  const { makeTask, makeProject, nowIso } = window.Docket.Schema;
+  const { makeTask, makeProject, makeFile, nowIso, migrate } = window.Docket.Schema;
   const Storage = window.Docket.Storage;
   const Reminders = window.Docket.Reminders;
 
@@ -14,12 +14,15 @@
   const SWEEP_INTERVAL_MS = 10 * 60 * 1000;
 
   const state = {
-    data: { schemaVersion: 2, projects: [], tasks: [] },
+    data: makeFile(),
     view: "board", // 'board' | 'agenda' | 'archive'
     activeProjectId: "all",
     search: "",
-    syncStatus: "no-file", // 'synced' | 'mirror-only' | 'disconnected' | 'no-file'
-    dbStatus: "no-db", // 'synced' | 'disconnected' | 'no-db' — independent of syncStatus, see PLAN-turso.md A2
+    // 'checking' until boot's background merge reports — the board renders
+    // before either remote answers (A11), and "Local only" or "Database off"
+    // in that window would be a claim nobody has checked yet.
+    syncStatus: "checking", // 'synced' | 'mirror-only' | 'disconnected' | 'no-file' | 'corrupt' | 'checking'
+    dbStatus: "checking", // 'synced' | 'disconnected' | 'no-db' | 'checking' — independent of syncStatus, see PLAN-turso.md A2
   };
 
   const els = {};
@@ -82,17 +85,27 @@
     fn(state.data);
     sweepArchive(state.data);
     Storage.autosave(state.data);
+    // The one choke point every write passes through (A12): an edited due
+    // time, a finished task, a delete, or a repeat's freshly spawned next
+    // occurrence all need their timers re-armed here, not just from the
+    // handler that happened to trigger this mutate().
+    Reminders.rescheduleAll(state.data.tasks);
     render();
   }
 
+  // Returns how many it archived, so the ten-minute sweep can tell a real
+  // change from an idle tick.
   function sweepArchive(data) {
     const cutoff = Date.now() - ARCHIVE_AFTER_MS;
+    let n = 0;
     for (const t of data.tasks) {
       if (t.status === "done" && !t.archivedAt && t.doneAt && new Date(t.doneAt).getTime() <= cutoff) {
         t.archivedAt = nowIso();
         t.updatedAt = nowIso();
+        n++;
       }
     }
+    return n;
   }
 
   // ---- rendering ------------------------------------------------------------
@@ -146,7 +159,10 @@
 
   // Advances a YYYY-MM-DD key by one recurrence interval, in local time.
   // Month steps clamp to the last valid day, so the 31st repeating monthly
-  // lands on the 30th/28th rather than silently rolling into next month.
+  // lands on the 30th/28th rather than silently rolling into next month —
+  // and clamp from recurrence.day, the series' anchor, not from the date
+  // being advanced. Clamping from the date drifted: 01-31 → 02-28 → 03-28
+  // for ever after one short month (A24).
   function advanceDate(key, recurrence) {
     const [y, m, d] = key.split("-").map(Number);
     const n = recurrence.interval || 1;
@@ -160,7 +176,7 @@
     }
     const targetMonth = m - 1 + n;
     const lastDay = new Date(y, targetMonth + 1, 0).getDate();
-    return dateKey(new Date(y, targetMonth, Math.min(d, lastDay)));
+    return dateKey(new Date(y, targetMonth, Math.min(recurrence.day || d, lastDay)));
   }
 
   function describeRecurrence(r) {
@@ -179,23 +195,39 @@
     t.status = status;
     t.updatedAt = nowIso();
     t.doneAt = status === "done" ? nowIso() : null;
+    // A manual order belongs to the column it was set in. Carried across, it
+    // turned the new column manual and dropped its priority sort (A22). A drag
+    // assigns a fresh order straight after this, so drags are unaffected.
+    t.order = null;
 
     // Completing a recurring task spawns the next occurrence. The finished
     // instance stays done and archives normally — occurrences are
     // independent tasks, so completing one can never corrupt another.
     if (status === "done" && !wasDone && t.recurrence && t.dueDate) {
+      const recurrence = { ...t.recurrence };
+      if (recurrence.every === "month" && !recurrence.day) recurrence.day = Number(t.dueDate.slice(8));
+      // A late finish skips the missed occurrences: the next one is the first
+      // due after today. Stepping once left "Take vitamin", due 09-18 and
+      // ticked 09-28, due 09-19 — overdue on arrival, ten ticks to catch up.
+      // Stepping from the series keeps a monthly on its anchor day.
+      const today = todayKey();
+      let dueDate = advanceDate(t.dueDate, recurrence);
+      while (dueDate <= today) dueDate = advanceDate(dueDate, recurrence);
       d.tasks.push(
         makeTask({
           title: t.title,
           projectId: t.projectId,
           priority: t.priority,
           notes: t.notes,
-          recurrence: { ...t.recurrence },
-          dueDate: advanceDate(t.dueDate, t.recurrence),
+          recurrence,
+          dueDate,
           dueTime: t.dueTime,
           subtasks: t.subtasks.map((s) => ({ ...s, id: window.Docket.Schema.uuid(), done: false })),
         })
       );
+      // The new occurrence carries the series now. Left on this instance, a
+      // stray undo-and-redo (keys 3, 2, 3) spawned a second copy (A15).
+      t.recurrence = null;
     }
   }
 
@@ -343,12 +375,16 @@
         row.className = "archive-row";
         row.innerHTML = `
           <span class="archive-title">${escapeHtml(t.title)}</span>
-          <button class="btn-restore" data-id="${t.id}">Restore</button>
+          <button class="btn-restore" data-id="${escapeHtml(t.id)}">Restore</button>
         `;
         row.querySelector(".btn-restore").addEventListener("click", () => {
           mutate((d) => {
             const task = d.tasks.find((x) => x.id === t.id);
             task.archivedAt = null;
+            // A fresh doneAt, or the sweep in this same mutate() sees a done
+            // task over seven days old and archives it again (A14). The cost:
+            // its days-to-done in the rail now runs to the restore.
+            if (task.status === "done") task.doneAt = nowIso();
             task.updatedAt = nowIso();
           });
         });
@@ -366,7 +402,9 @@
   // wrong side of midnight for anyone not on UTC.
   function agendaBucket(task, today, tomorrow, weekEnd) {
     if (!task.dueDate) return "nodate";
-    if (task.dueDate < today) return "overdue";
+    // isOverdue() also reads dueTime, so a task due at 00:01 today files
+    // under Overdue exactly when its card says Overdue (C3).
+    if (isOverdue(task)) return "overdue";
     if (task.dueDate === today) return "today";
     if (task.dueDate === tomorrow) return "tomorrow";
     if (task.dueDate <= weekEnd) return "week";
@@ -465,7 +503,8 @@
 
     const byWeek = new Map();
     for (const t of archived) {
-      const w = isoWeekLabel(t.archivedAt);
+      // The week it was finished, not the week the sweep noticed (A25).
+      const w = isoWeekLabel(t.doneAt || t.archivedAt);
       byWeek.set(w, (byWeek.get(w) || 0) + 1);
     }
     let busiest = null;
@@ -559,11 +598,14 @@
     `;
   }
 
+  // ISO 8601, in local time: weeks start Monday, and a week belongs to the
+  // year its Thursday falls in — so 2027-01-01 is 2026 · WK 53, not
+  // 2027 · WK 01 (N4). Math.round absorbs a DST hour in the day count.
   function isoWeekLabel(iso) {
     const d = new Date(iso);
-    const onejan = new Date(d.getFullYear(), 0, 1);
-    const week = Math.ceil(((d - onejan) / 86400000 + onejan.getDay() + 1) / 7);
-    return `${d.getFullYear()} · WK ${String(week).padStart(2, "0")}`;
+    const thu = new Date(d.getFullYear(), d.getMonth(), d.getDate() + 3 - ((d.getDay() + 6) % 7));
+    const days = Math.round((thu - new Date(thu.getFullYear(), 0, 1)) / 86400000);
+    return `${thu.getFullYear()} · WK ${String(Math.floor(days / 7) + 1).padStart(2, "0")}`;
   }
 
   function renderProjectTabs() {
@@ -611,7 +653,7 @@
         <span class="project-name">${escapeHtml(p.name)}${
           p.description ? `<span class="project-desc">${escapeHtml(p.description)}</span>` : ""
         }</span>
-        <button class="btn-icon" data-action="delete" data-id="${p.id}">DEL</button>
+        <button class="btn-icon" data-action="delete" data-id="${escapeHtml(p.id)}">DEL</button>
       `;
       row.querySelector('[data-action="delete"]').addEventListener("click", () => deleteProject(p.id));
       list.appendChild(row);
@@ -640,12 +682,33 @@
       // merely disconnected, and the worse of the two. It gets its own label
       // rather than hiding inside "disconnected".
       corrupt: "File unreadable — using browser copy",
+      checking: "Checking folder…",
     };
     els["sync-strip"].textContent = labels[state.syncStatus];
     els["sync-strip"].dataset.status = state.syncStatus;
     els["reconnect-banner"].hidden = state.syncStatus !== "disconnected";
-    document.getElementById("no-file-banner").hidden =
-      state.syncStatus === "synced" || state.syncStatus === "corrupt";
+
+    // One banner, four messages. Without File System Access (Firefox,
+    // Safari, every phone) both buttons can only fail, so it says why
+    // instead (A18). A file that won't parse is never written to until a
+    // connect reads it cleanly (A6), so the connect buttons stay offered.
+    // A profile connected before the folder picker has a file and no
+    // folder: it syncs, but sync.js has nowhere to put backups, and nothing
+    // said so (A8). Reconnecting is the fix for both, and is safe because
+    // every connect reads before it writes.
+    const supported = window.Sync.supported();
+    const backupsOff = Storage.hasFileHandle() && !Storage.hasDirHandle();
+    const banner = $("no-file-banner");
+    banner.hidden = (supported && !backupsOff && state.syncStatus === "synced") || state.syncStatus === "checking";
+    banner.querySelector("span").textContent = !supported
+      ? "Saved in this browser. Folder sync needs desktop Chrome."
+      : state.syncStatus === "corrupt"
+        ? "docket.json won't parse, so nothing is written to it. Fix or replace it, then reconnect the folder."
+        : backupsOff
+          ? "Backups are off — reconnect the folder to turn them on."
+          : "Saved in this browser. Connect a folder to keep a copy on disk.";
+    $("connect-file-btn").hidden = !supported;
+    $("new-file-btn").hidden = !supported || backupsOff;
   }
 
   // Independent of renderSyncStrip — the database is a second, independent
@@ -656,6 +719,7 @@
       synced: "Synced to database",
       disconnected: "Database disconnected",
       "no-db": "Database off",
+      checking: "Checking database…",
     };
     els["db-strip"].textContent = labels[state.dbStatus];
     els["db-strip"].dataset.status = state.dbStatus;
@@ -674,6 +738,7 @@
     renderProjectTabs();
     renderSyncStrip();
     renderDbStrip();
+    renderNotifBanner();
     renderTelemetry();
     renderSearchState();
     if (state.view === "board") renderBoard();
@@ -703,7 +768,9 @@
   function escapeHtml(s) {
     const d = document.createElement("div");
     d.textContent = s;
-    return d.innerHTML;
+    // textContent escapes & < > but not quotes, and this output also lands
+    // inside value="…" and title="…" — an unescaped " ends the attribute.
+    return d.innerHTML.replace(/"/g, "&quot;").replace(/'/g, "&#39;");
   }
 
   // ---- card modal -------------------------------------------------------------
@@ -721,7 +788,7 @@
         <label>PROJECT
           <select id="f-project">
             <option value="">— NONE —</option>
-            ${state.data.projects.map((p) => `<option value="${p.id}" ${p.id === task.projectId ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
+            ${state.data.projects.map((p) => `<option value="${escapeHtml(p.id)}" ${p.id === task.projectId ? "selected" : ""}>${escapeHtml(p.name)}</option>`).join("")}
           </select>
         </label>
         <label>PRIORITY
@@ -855,6 +922,8 @@
     body.querySelector("#f-save").addEventListener("click", () => {
       mutate((d) => {
         const t = d.tasks.find((x) => x.id === taskId);
+        const prevDue = t.dueDate;
+        const prevDay = t.recurrence?.day;
         t.title = body.querySelector("#f-title").value.trim() || t.title;
         t.projectId = body.querySelector("#f-project").value || null;
         t.priority = body.querySelector("#f-priority").value;
@@ -866,6 +935,10 @@
         t.recurrence = every
           ? { every, interval: Math.max(1, Math.min(99, +intervalInput.value || 1)) }
           : null;
+        // Keep the monthly anchor through an ordinary Save of the 02-28
+        // occurrence, or the series re-anchors on the 28th (A24). A changed
+        // due date is a new anchor, which applyStatus takes from the date.
+        if (every === "month" && prevDay && t.dueDate === prevDue) t.recurrence.day = prevDay;
         t.updatedAt = nowIso();
 
         // Status last: applyStatus reads the recurrence and due date we just
@@ -882,6 +955,10 @@
       const removed = state.data.tasks[index];
       mutate((d) => {
         d.tasks = d.tasks.filter((x) => x.id !== taskId);
+        // Without the tombstone, any other copy that still holds the task —
+        // the folder file inside its write debounce, another device — puts
+        // it straight back on the next merge (A5).
+        d.deleted.push({ id: taskId, at: nowIso() });
       });
       Reminders.cancel(taskId);
       closeModal();
@@ -890,8 +967,13 @@
         duration: 8000,
         onAction: () => {
           // Spliced back at its original index so the card returns where it
-          // was, not to the end of the list.
-          mutate((d) => d.tasks.splice(Math.min(index, d.tasks.length), 0, removed));
+          // was, not to the end of the list. The fresh updatedAt is what
+          // carries the undo to copies that already merged the tombstone.
+          mutate((d) => {
+            d.deleted = d.deleted.filter((e) => e.id !== taskId);
+            removed.updatedAt = nowIso();
+            d.tasks.splice(Math.min(index, d.tasks.length), 0, removed);
+          });
           Reminders.schedule(removed);
           showToast("Restored");
         },
@@ -909,7 +991,12 @@
 
   function deleteProject(id) {
     // Deletion always reassigns affected tasks to "no project" first —
-    // never confirm(), per house rule; the reassignment IS the safety net.
+    // never confirm(), per house rule; the reassignment and the Undo toast
+    // are the safety net.
+    const index = state.data.projects.findIndex((p) => p.id === id);
+    if (index < 0) return;
+    const project = state.data.projects[index];
+    const memberIds = state.data.tasks.filter((t) => t.projectId === id).map((t) => t.id);
     mutate((d) => {
       d.tasks.forEach((t) => {
         if (t.projectId === id) {
@@ -918,9 +1005,36 @@
         }
       });
       d.projects = d.projects.filter((p) => p.id !== id);
+      d.deleted.push({ id, at: nowIso() });
+      // Inside the callback, so the render mutate() runs next already shows
+      // ALL. Reset after it, the board rendered filtered to a project that no
+      // longer exists: zero cards and no tab lit (A20).
+      if (state.activeProjectId === id) state.activeProjectId = "all";
     });
-    if (state.activeProjectId === id) state.activeProjectId = "all";
     renderProjectModalList();
+    showToast(`Deleted project "${project.name}"`, {
+      actionLabel: "Undo",
+      duration: 8000,
+      onAction: () => {
+        mutate((d) => {
+          d.deleted = d.deleted.filter((e) => e.id !== id);
+          // Newer than the tombstone, so a copy that already merged it lets
+          // the project back in rather than deleting it again.
+          project.updatedAt = nowIso();
+          d.projects.splice(Math.min(index, d.projects.length), 0, project);
+          // Only tasks still unassigned: one moved to another project since
+          // the delete keeps the choice made after it.
+          d.tasks.forEach((t) => {
+            if (memberIds.includes(t.id) && t.projectId === null) {
+              t.projectId = id;
+              t.updatedAt = nowIso();
+            }
+          });
+        });
+        if (!els["project-modal"].hidden) renderProjectModalList();
+        showToast("Restored");
+      },
+    });
   }
 
   // ---- wiring ---------------------------------------------------------------
@@ -989,40 +1103,45 @@
         col.classList.remove("drop-target");
         const id = e.dataTransfer.getData("text/plain");
         const status = col.dataset.status;
-        const insertAt = dropIndex(col, e.clientY, id);
+        const beforeId = dropIndex(col, e.clientY, id);
 
         mutate((d) => {
           applyStatus(d, id, status);
-          reorderColumn(d, status, id, insertAt);
+          reorderColumn(d, status, id, beforeId);
         });
       });
     });
   }
 
-  // Which slot the pointer is over: the first card whose midpoint is below
-  // the cursor. Excludes the dragged card so its own height does not shift
-  // the target while it is being moved.
+  // Which card the pointer lands before: the first whose midpoint is below
+  // the cursor, or null for the end. Excludes the dragged card so its own
+  // height does not shift the target while it is being moved. An id, not an
+  // index: the DOM holds only the visible cards, and an index counted in a
+  // filtered column landed somewhere else in the full one (A22).
   function dropIndex(col, clientY, draggedId) {
     const cards = [...col.querySelectorAll(".card")].filter((c) => c.dataset.id !== draggedId);
-    for (let i = 0; i < cards.length; i++) {
-      const r = cards[i].getBoundingClientRect();
-      if (clientY < r.top + r.height / 2) return i;
+    for (const c of cards) {
+      const r = c.getBoundingClientRect();
+      if (clientY < r.top + r.height / 2) return c.dataset.id;
     }
-    return cards.length;
+    return null;
   }
 
   // Reassigns 0..n across the whole column on every drop, so order values
-  // stay dense integers and no fractional drift accumulates over time.
-  function reorderColumn(d, status, movedId, insertAt) {
+  // stay dense integers and no fractional drift accumulates over time. Only
+  // the moved card is stamped: updatedAt decides the merge, and stamping the
+  // whole column let one drag overwrite another device's edit to a card this
+  // one never touched (A4). The others' order rides along with whichever
+  // version wins — a cosmetic loss, not a content one.
+  function reorderColumn(d, status, movedId, beforeId) {
     const inColumn = d.tasks.filter((t) => t.status === status && !t.archivedAt);
     const others = sortColumn(inColumn.filter((t) => t.id !== movedId));
     const moved = d.tasks.find((t) => t.id === movedId);
     if (!moved) return;
-    others.splice(Math.max(0, Math.min(insertAt, others.length)), 0, moved);
-    others.forEach((t, i) => {
-      t.order = i;
-      t.updatedAt = nowIso();
-    });
+    const at = others.findIndex((t) => t.id === beforeId);
+    others.splice(at === -1 ? others.length : at, 0, moved);
+    others.forEach((t, i) => (t.order = i));
+    moved.updatedAt = nowIso();
   }
 
   function wireViews() {
@@ -1091,7 +1210,7 @@
   }
 
   function refocusTask(id) {
-    const el = document.querySelector(`.card[data-id="${id}"]`);
+    const el = document.querySelector(`.card[data-id="${CSS.escape(id)}"]`);
     if (el) el.focus();
   }
 
@@ -1110,9 +1229,16 @@
     els["theme-toggle"].title = `Currently ${t} — click for ${t === "dark" ? "light" : "dark"}`;
   }
 
-  function wireTheme() {
+  // Applied as this script loads, not in boot(): the first frame has to be
+  // the theme you chose. From inside boot() it waited on the storage merge,
+  // and with a database configured that was a network round trip of the
+  // wrong theme (A11).
+  try {
     const stored = localStorage.getItem("docket.theme");
     if (stored) document.documentElement.dataset.theme = stored;
+  } catch {}
+
+  function wireTheme() {
     paintThemeLabel();
 
     els["theme-toggle"].addEventListener("click", () => {
@@ -1238,30 +1364,50 @@
     document.getElementById("card-modal-close").addEventListener("click", closeModal);
   }
 
+  // Every way of getting a folder reads it before anything is written to it
+  // (A1). Storage.adopt() reports the strip's status itself, including
+  // "corrupt" when the file won't parse.
+  async function adoptFolder() {
+    state.data = await Storage.adopt(() => state.data);
+    sweepArchive(state.data);
+    Reminders.rescheduleAll(state.data.tasks);
+    render();
+  }
+
+  // AbortError is you closing the picker — nothing to say. Anything else
+  // used to reach only the console, so the button looked dead.
+  function folderError(err) {
+    console.warn("[docket] folder connect failed", err);
+    if (err && err.name === "AbortError") return;
+    showToast(
+      err && err.name === "NotFoundError"
+        ? "No docket.json in that folder — pick the folder that has it, or use Set up folder to start one"
+        : `Couldn't connect the folder — ${(err && err.message) || err}`,
+      true
+    );
+  }
+
   function wireReconnect() {
     document.getElementById("reconnect-btn").addEventListener("click", async () => {
       const status = await Storage.requestReconnect();
       state.syncStatus = status;
-      render();
+      if (status === "synced") await adoptFolder();
+      else render();
     });
     document.getElementById("connect-file-btn").addEventListener("click", async () => {
       try {
         await Storage.connectExistingFile();
-        state.syncStatus = "synced";
-        Storage.autosave(state.data);
-        render();
+        await adoptFolder();
       } catch (err) {
-        console.warn("[docket] connect cancelled", err);
+        folderError(err);
       }
     });
     document.getElementById("new-file-btn").addEventListener("click", async () => {
       try {
         await Storage.createNewFile();
-        state.syncStatus = "synced";
-        Storage.autosave(state.data);
-        render();
+        await adoptFolder();
       } catch (err) {
-        console.warn("[docket] new file cancelled", err);
+        folderError(err);
       }
     });
   }
@@ -1270,6 +1416,12 @@
     const el = els["db-modal-error"];
     el.textContent = msg || "";
     el.hidden = !msg;
+    // An earlier connect's "Connected to database" can still be on screen,
+    // and it would contradict the error beside it.
+    if (msg) {
+      clearTimeout(toastTimer);
+      els["toast"].hidden = true;
+    }
   }
 
   function openDbModal() {
@@ -1295,12 +1447,25 @@
       dbError("Enter both the database URL and the auth token.");
       return;
     }
+    // Without a scheme fetch() resolves the URL against this page, and the
+    // POST — bearer token included — goes to whoever hosts Docket (A13).
+    if (!/^(libsql|https):\/\//i.test(url)) {
+      dbError("The URL starts with libsql:// — copy it from the Turso dashboard.");
+      return;
+    }
     els["db-connect-btn"].disabled = true;
     try {
-      const merged = await Storage.connectDb(url, token, () => state.data);
-      state.data = merged;
-      sweepArchive(state.data);
-      Reminders.rescheduleAll(state.data.tasks);
+      // Applied as it arrives and reconciled against the live board, like
+      // boot's merge: the flush that follows is a round trip, and a board
+      // swapped in after it would drop a task captured meanwhile.
+      await Storage.connectDb(url, token, () => state.data, (merged) =>
+        applyMerged(Storage.reconcile(merged, state.data)));
+      // connect() only proves the table exists; the read and the first write
+      // can still fail, and "Connected" over a red strip is a lie.
+      if (Storage.dbInfo().status !== "synced") {
+        dbError(`Connected, but the database didn't answer${Storage.dbInfo().lastError ? ` (${Storage.dbInfo().lastError})` : ""}. Check the URL and token.`);
+        return;
+      }
       closeDbModal();
       render();
       showToast("Connected to database");
@@ -1362,6 +1527,9 @@
           const merged = Storage.reconcile(d, imported);
           d.projects = merged.projects;
           d.tasks = merged.tasks;
+          // An export's tombstones are deletes this board hasn't seen yet;
+          // dropping them would let the next merge resurrect those tasks.
+          d.deleted = merged.deleted;
         });
         const added = state.data.tasks.length - before;
         showToast(`IMPORTED — ${added >= 0 ? added : 0} NEW TASK${added === 1 ? "" : "S"}, REST MERGED BY MOST RECENT EDIT`);
@@ -1372,12 +1540,19 @@
     });
   }
 
+  // Shown only once there's something to remind about (C7): a fresh profile
+  // with zero tasks has no dueTime yet, so asking for permission would be
+  // asking for nothing. Re-evaluated on every render, so the first due time
+  // you add raises it without a reload.
+  function renderNotifBanner() {
+    els["notif-banner"].hidden =
+      Reminders.permissionState() !== "default" || !state.data.tasks.some((t) => t.dueTime);
+  }
+
   function wireNotifications() {
-    const perm = Reminders.permissionState();
-    els["notif-banner"].hidden = perm !== "default";
     els["notif-enable-btn"].addEventListener("click", async () => {
       await Reminders.requestPermission();
-      els["notif-banner"].hidden = true;
+      renderNotifBanner();
       Reminders.rescheduleAll(state.data.tasks);
     });
   }
@@ -1393,9 +1568,10 @@
       renderDbStrip();
     };
 
-    const { data, status } = await Storage.init();
-    state.data = data;
-    state.syncStatus = status;
+    // Render first, from the browser's own copy, and merge the folder and the
+    // database in behind it (A11). Awaiting them here made capture wait on
+    // the network — with a database that never answered, forever.
+    state.data = Storage.loadLocal();
     sweepArchive(state.data);
 
     wireQuickAdd();
@@ -1413,7 +1589,18 @@
 
     render();
     Reminders.rescheduleAll(state.data.tasks);
-    setInterval(() => mutate(() => {}), SWEEP_INTERVAL_MS);
+    // Saves only when the sweep archived something. An idle tab used to
+    // write — and back up — every ten minutes, so 100 idle minutes filled
+    // all ten backup slots with one moment (A7). It still renders, so the
+    // date and the Overdue tags stay current.
+    setInterval(() => {
+      if (sweepArchive(state.data)) Storage.autosave(state.data);
+      // A due time more than ~24.8 days out is deliberately left unscheduled
+      // (A12's 2^31ms overflow); this tick is what brings it into range
+      // without needing a reload once it does.
+      Reminders.rescheduleAll(state.data.tasks);
+      render();
+    }, SWEEP_INTERVAL_MS);
 
     // Re-read the folder whenever this tab comes back to the front. Another
     // machine may have written the file while you were away, and until now
@@ -1425,18 +1612,52 @@
     Storage.watch(
       () => state.data,
       (merged) => {
-        state.data = merged;
-        sweepArchive(state.data);
-        Reminders.rescheduleAll(state.data.tasks);
-        render();
+        applyMerged(merged);
         showRemoteNote();
       },
       () => !els["card-modal"].hidden || !els["project-modal"].hidden || !els["db-modal"].hidden
     );
 
+    // Another tab of this app on this machine wrote the mirror. Every
+    // mutate() writes the whole board, so without this the second tab's next
+    // edit overwrites the first tab's task, and in local-only mode there is
+    // no folder or database refresh to heal it (A3). Merged, never saved:
+    // the event only fires in the *other* tabs, so a write here would bounce
+    // back as an event there, and this tab's next edit carries the merge out
+    // anyway. Not held off while a panel is open, unlike the focus refresh —
+    // a Save from a board that missed the other tab's task would erase it.
+    window.addEventListener("storage", (e) => {
+      if (e.key !== "docket.v1" || !e.newValue) return;
+      let theirs;
+      try {
+        theirs = migrate(JSON.parse(e.newValue));
+      } catch {
+        return;
+      }
+      if (theirs) applyMerged(Storage.reconcile(state.data, theirs));
+    });
+
+    // Everything is wired, so a task typed while this runs is already in
+    // state.data. Each result is reconciled against the board as it stands
+    // when it arrives, not as it stood when the merge started, so that task
+    // survives. Status strips update from the Storage callbacks as each
+    // remote answers.
+    Storage.init(() => state.data, (merged) => applyMerged(Storage.reconcile(merged, state.data))).catch((err) =>
+      console.warn("[docket] background merge failed — staying on the browser copy", err)
+    );
+
     if ("serviceWorker" in navigator) {
       navigator.serviceWorker.register("service-worker.js").catch(() => {});
     }
+  }
+
+  // The one way a merged board replaces the live one: boot's merge, the
+  // focus refresh, another tab and a live database connect all land here.
+  function applyMerged(merged) {
+    state.data = merged;
+    sweepArchive(state.data);
+    Reminders.rescheduleAll(state.data.tasks);
+    render();
   }
 
   document.addEventListener("DOMContentLoaded", boot);

@@ -57,7 +57,14 @@ to unticked. The one you finished stays finished and archives normally.
 
 A repeat needs a due date to move forward from — the card tells you inline if
 you've set one without the other. Monthly repeats clamp to the end of short
-months, so the 31st becomes the 28th in February rather than skipping ahead.
+months and then return to their day: a rent due on the 31st goes 31 Jan →
+28 Feb → 31 Mar, not 28 Feb → 28 Mar for ever after.
+
+**A late tick skips what you missed.** Finish a daily task that was due ten
+days ago and the next one is due tomorrow, not nine days ago — the missed
+occurrences are dropped, not queued. That's the right call for a habit and the
+wrong one for something you owe every period, so for those, tick them on time
+or add the missed ones by hand.
 
 ## If you delete something by accident
 

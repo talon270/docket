@@ -18,6 +18,11 @@ window.Docket = window.Docket || {};
 (function () {
   const CRED_KEY = "docket.turso.v1";
   const DEVICE_KEY = "sync.deviceId"; // shared with vendor/sync.js — one id per machine, not per remote
+  // fetch() has no timeout of its own, so a request that never answers (a
+  // captive portal, a dead mobile link) left the strip on its last word
+  // forever. 8 s is long past a slow Turso round trip and short enough that
+  // "disconnected" arrives while you're still looking (A11).
+  const REQUEST_TIMEOUT_MS = 8000;
 
   function deviceId() {
     try {
@@ -76,7 +81,18 @@ window.Docket = window.Docket || {};
 
     // One HTTP call, N statements, in order — Hrana's pipeline request.
     async function pipeline(creds, stmts) {
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), REQUEST_TIMEOUT_MS);
+      try {
+        return await request(creds, stmts, abort.signal);
+      } finally {
+        clearTimeout(timer);
+      }
+    }
+
+    async function request(creds, stmts, signal) {
       const res = await fetch(pipelineUrl(creds.url), {
+        signal,
         method: "POST",
         headers: {
           Authorization: "Bearer " + creds.token,
@@ -144,6 +160,10 @@ window.Docket = window.Docket || {};
 
     async function connect(url, token) {
       const creds = { url, token };
+      // A new credential may be a different database's table. Left set, a
+      // second connect ran no request at all, so a typo'd token was saved
+      // unchecked and a fresh database never got its table (A13).
+      ensured = false;
       try {
         await ensureTable(creds);
       } catch (err) {
@@ -184,6 +204,17 @@ window.Docket = window.Docket || {};
       }
       try {
         await ensureTable(creds);
+        // Every write folds the row in first. Writing the board as it stands
+        // replaced whatever another device had written since this one last
+        // read: a device that booted offline wiped the other's work (A1), and
+        // a tab that never lost focus wrote its stale copy of a card over a
+        // note added on the phone (A4). The board itself picks the row up on
+        // the next refresh; until then each write repeats the merge.
+        // ponytail: read-then-write, not atomic — a write landing between the
+        // two requests is lost; a version column with a conditional UPDATE if
+        // that window ever shows up in practice.
+        const row = await readRow(creds);
+        if (row) data = merge(row.data, data);
         await writeRow(creds, data);
         lastError = null;
         setStatus("synced");

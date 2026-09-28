@@ -1,2 +1,8 @@
 .DS_Store
 *.log
+
+# Local only: timestamped backups, tool caches, agent definitions (N2)
+*.backup-*
+.impeccable/
+.claude/
+__pycache__/
