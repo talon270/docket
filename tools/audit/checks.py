@@ -234,6 +234,20 @@ def check_a7(env) -> list[Result]:
     return out
 
 
+def check_p10(env) -> list[Result]:
+    # The durable half of A7: spacing has to survive a reload, so an edit after
+    # each of five quick reloads still adds no backup beyond the first.
+    c, pg = env.profile(); boot(pg, env.url)
+    connect_folder(pg); quick_add(pg, "Edit 0"); pg.wait_for_timeout(800)
+    n0 = len(backups(pg))
+    for i in range(1, 6):
+        pg.reload(); pg.wait_for_timeout(900)
+        quick_add(pg, f"Edit {i}"); pg.wait_for_timeout(800)
+    n1 = len(backups(pg))
+    c.close()
+    return [("reloads within five minutes add no backup", n0 == 1 and n1 == n0, f"backups {n0} -> {n1}")]
+
+
 def check_a8(env) -> list[Result]:
     c, pg = env.profile(); boot(pg, env.url)
     opfs_write(pg, task_file(5))
@@ -861,7 +875,8 @@ CHECKS = {
     "A21": ("P8", check_a21), "A22": ("P6", check_a22), "A23": ("P8", check_a23), "A24": ("P6", check_a24),
     "A25": ("P6", check_a25), "C1": ("P7", check_c1), "C2": ("P8", check_c2), "C3": ("P6", check_c3),
     "C4": ("P8", check_c4), "C5": ("P8", check_c5), "C6": ("P9", check_c6), "C7": ("P5", check_c7),
-    "N2": ("P9", check_n2), "N3": ("P9", check_n3), "N5": ("P9", check_n5), "SMOKE": ("all", check_smoke),
+    "N2": ("P9", check_n2), "N3": ("P9", check_n3), "N5": ("P9", check_n5), "P10": ("P10", check_p10),
+    "SMOKE": ("all", check_smoke),
 }
 
 

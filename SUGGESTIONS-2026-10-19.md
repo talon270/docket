@@ -63,7 +63,7 @@ line plus a comment. It ships under the `v14` bump already in the tree. If
 `v14` was deployed before this change, bump to `v15` so installed copies pick
 it up. The same fix went into 9 other apps' workers.
 
-### A3 · DESIGN RISK (medium): the audit's P10 is still open — backup spacing resets on every reload
+### A3 · DESIGN RISK (medium): the audit's P10 is still open — backup spacing resets on every reload — FIXED
 
 `Hub/shared/sync.js:152` keeps `lastBackupAt` in memory only. So the first
 folder write after any reload always makes a backup, and ten quick reloads
@@ -72,6 +72,21 @@ Docket's own side was fixed by not writing on load unless the merge brought
 something. The shared root fix (P10: "reloads within five minutes add no
 backup") isn't in `shared/sync.js`. The vendored copies are identical to it
 apart from their header. See `Hub/SUGGESTIONS-2026-10-19.md`.
+
+**Fix (applied, afternoon pass):** `writeBackup()` now seeds `lastBackupAt`
+from the newest `backups/<prefix>*.json` name on the first backup of a page
+load. A stamp ahead of the local clock is ignored, so a fast device can't
+hold backups off. Vendored with `sh Hub/tools/sync-vendor.sh`. New check
+`P10` in `tools/audit/checks.py` (an edit after each of five reloads):
+
+| | Backups after 1 edit, then 5 reload + edit |
+|---|---|
+| Before | 1 -> 6 |
+| After | 1 -> 1 |
+
+Full suite 37 passed, 0 failed. Helth `check-syncmerge.js` 11 pass, 0 fail.
+Cache bumped to `docket-shell-v15`, because `v14` was already pushed and the
+worker is cache-first.
 
 ## Out of scope
 

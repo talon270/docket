@@ -1,4 +1,4 @@
-/* VENDORED from Hub/shared/sync.js on 2026-08-26 — do not edit here.
+/* VENDORED from Hub/shared/sync.js on 2026-10-19 — do not edit here.
    Edit the canonical copy and run: sh Hub/tools/sync-vendor.sh */
 /* ==========================================================================
    SYNC · folder-backed multi-device sync
@@ -336,6 +336,12 @@ window.Sync = (function () {
       if (!dirHandle) return Promise.resolve(false);
       var now = Date.now();
       if (lastBackupAt && now - lastBackupAt < backupInterval) return Promise.resolve(false);
+      /* lastBackupAt lives in memory, so on every page load it starts at 0 and
+         spacing would restart from nothing: ten quick reloads that each write
+         filled all ten slots with one moment. The first backup of a load reads
+         the newest one on disk instead. A stamp ahead of this clock (another
+         device running fast) is ignored, so it can't hold backups off. */
+      var seed = !lastBackupAt;
       lastBackupAt = now;
 
       /* Milliseconds, not seconds: two writes inside the same second collide
@@ -344,33 +350,52 @@ window.Sync = (function () {
 
       return dirHandle.getDirectoryHandle("backups", { create: true })
         .then(function (dir) {
-          return dir.getFileHandle(backupPrefix + s + ".json", { create: true })
-            .then(function (h) { return h.createWritable(); })
-            .then(function (w) {
-              return w.write(serialize(data)).then(function () { return w.close(); });
-            })
-            .then(function () { return prune(dir); });
+          return (seed ? ownBackups(dir) : Promise.resolve([])).then(function (names) {
+            var prev = names.length ? backupTime(names[names.length - 1]) : 0;
+            if (prev && prev <= now && now - prev < backupInterval) {
+              lastBackupAt = prev;
+              return false;
+            }
+            return dir.getFileHandle(backupPrefix + s + ".json", { create: true })
+              .then(function (h) { return h.createWritable(); })
+              .then(function (w) {
+                return w.write(serialize(data)).then(function () { return w.close(); });
+              })
+              .then(function () { return prune(dir); })
+              .then(function () { return true; });
+          });
         })
-        .then(function () { return true; })
         .catch(function (err) {
           console.warn("[sync:" + appId + "] backup failed", err);
           return false;
         });
     }
 
-    /* Prune only our own backups. The folder is shared with the other apps,
-       so a blind sort-and-delete would eat theirs. */
-    function prune(dir) {
+    /* The inverse of the name above. Names from before the millisecond change
+       end at seconds. 0 means unparseable, which counts as no backup. */
+    function backupTime(name) {
+      var m = /^(\d{4}-\d\d-\d\d)-(\d\d)-(\d\d)-(\d\d)(?:-(\d{3}))?/.exec(name.slice(backupPrefix.length));
+      return m ? Date.parse(m[1] + "T" + m[2] + ":" + m[3] + ":" + m[4] + "." + (m[5] || "000") + "Z") || 0 : 0;
+    }
+
+    /* Only our own backups, oldest first. The folder is shared with the other
+       apps, so a blind sort-and-delete would eat theirs. */
+    function ownBackups(dir) {
       var names = [];
       return (async function () {
         for await (var entry of dir.entries()) {
           if (entry[0].indexOf(backupPrefix) === 0) names.push(entry[0]);
         }
-        names.sort();
+        return names.sort();
+      })();
+    }
+
+    function prune(dir) {
+      return ownBackups(dir).then(async function (names) {
         var excess = names.length - backupKeep;
         for (var i = 0; i < excess; i++) await dir.removeEntry(names[i]);
         return excess > 0 ? excess : 0;
-      })();
+      });
     }
 
     /* ---- conflicts ---------------------------------------------------- */
