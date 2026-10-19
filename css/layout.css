@@ -1166,3 +1166,17 @@
 @media (pointer: coarse) {
   .quick-add-hint { display: none; }
 }
+
+/* Empty To do figure (js/hairline-pegboard.js). It sets no colour of its
+   own: these map its five stroke weights onto the theme tokens, the bright
+   one onto the accent, and its plate is the column it stands in. */
+.empty-figure {
+  width: min(220px, 100%);
+  margin: -0.6rem 0 0.4rem;
+  --hairline-plate: var(--bg); --hairline-hi: var(--accent); --hairline-edge: var(--fg-dim);
+  --hairline-mid: var(--fg-ghost); --hairline-lo: var(--border-hair);
+}
+.empty-figure .hl-read {
+  position: absolute; top: 2px; right: 4px; pointer-events: none;
+  font: 0.6rem/1 var(--font-micro); letter-spacing: 0.08em; color: var(--fg-dim);
+}

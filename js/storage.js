@@ -25,12 +25,21 @@ window.Docket = window.Docket || {};
     localStorage.setItem(MIRROR_KEY, JSON.stringify(data));
   }
 
+  // Set when the mirror couldn't be read: the key its raw text was copied to.
+  let unreadableKey = null;
+
   function loadMirror() {
     const raw = localStorage.getItem(MIRROR_KEY);
     if (!raw) return null;
     try {
       return migrate(JSON.parse(raw));
     } catch {
+      // Unreadable is not empty. loadLocal() writes a blank board over the
+      // mirror as soon as this returns, so the copy has to be taken here.
+      if (!unreadableKey) {
+        unreadableKey = MIRROR_KEY + ".unreadable-" + Date.now();
+        try { localStorage.setItem(unreadableKey, raw); } catch { unreadableKey = null; }
+      }
       return null;
     }
   }
@@ -349,6 +358,7 @@ window.Docket = window.Docket || {};
   window.Docket.Storage = {
     init,
     loadLocal,
+    unreadableKey: () => unreadableKey,
     autosave,
     adopt,
     watch,

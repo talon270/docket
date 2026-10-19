@@ -317,8 +317,13 @@
       const copy = state.search.trim()
         ? { big: "No matches", small: "Nothing in this column matches your search" }
         : EMPTY_COPY[status];
-      empty.innerHTML = `${copy.big}<small>${copy.small}</small>`;
+      // Only an empty To do gets the bare pegboard: an empty Doing or Done
+      // column is the normal state of a working board, not something missing.
+      const figure = status === "todo" && !state.search.trim()
+        ? `<div class="empty-figure" data-hairline-figure="pegboard"></div>` : "";
+      empty.innerHTML = `${figure}${copy.big}<small>${copy.small}</small>`;
       bodyEl.appendChild(empty);
+      if (figure && window.hairline) window.hairline.scan(empty);
       return;
     }
     tasks.forEach((t) => bodyEl.appendChild(cardEl(t)));
@@ -1603,6 +1608,16 @@
     // database in behind it (A11). Awaiting them here made capture wait on
     // the network — with a database that never answered, forever.
     state.data = Storage.loadLocal();
+    if (Storage.unreadableKey()) {
+      const b = document.createElement("div");
+      b.className = "banner alert";
+      b.setAttribute("role", "alert");
+      const s = document.createElement("span");
+      s.textContent = `This browser's saved tasks couldn't be read. They were kept under ` +
+        `${Storage.unreadableKey()} in its storage, and the board started from a blank copy.`;
+      b.append(s);
+      document.querySelector(".status-rail").prepend(b);
+    }
     sweepArchive(state.data);
 
     wireQuickAdd();

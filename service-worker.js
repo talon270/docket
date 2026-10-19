@@ -5,12 +5,15 @@
 
 // Bump on every shell change — an old cache would keep serving stale CSS/JS
 // to anyone who already loaded the site.
-const CACHE = "docket-shell-v13";
+const CACHE = "docket-shell-v14";
 const SHELL = [
   "./",
   "./index.html",
   "./css/theme.css",
   "./css/layout.css",
+  "./vendor/hairline-kernel.js",
+  "./js/hairline-host.js",
+  "./js/hairline-pegboard.js",
   "./vendor/sync.js",
   "./js/turso.js",
   "./js/schema.js",
@@ -34,7 +37,8 @@ self.addEventListener("install", (e) => {
 
 self.addEventListener("activate", (e) => {
   e.waitUntil(
-    caches.keys().then((keys) => Promise.all(keys.filter((k) => k !== CACHE).map((k) => caches.delete(k))))
+    /* Only this app's caches: every app on talon270.github.io shares one CacheStorage, and deleting the rest took their offline copies with it. */
+    caches.keys().then((keys) => Promise.all(keys.filter((k) => k.startsWith("docket-shell-") && k !== CACHE).map((k) => caches.delete(k))))
   );
   self.clients.claim();
 });
