@@ -46,7 +46,7 @@
       "view-agenda-btn", "search-input", "search-clear", "search-count",
       "db-strip", "db-reconnect-banner", "no-db-banner", "open-db-modal-btn", "db-retry-btn",
       "db-modal", "db-modal-close", "db-url-input", "db-token-input", "db-modal-error",
-      "db-modal-status", "db-connect-btn", "db-disconnect-btn",
+      "db-modal-status", "db-connect-btn", "db-disconnect-btn", "glance-dock",
     ].forEach((id) => (els[id] = $(id)));
   }
 
@@ -333,6 +333,31 @@
     renderColumn(els["body-todo"], els["count-todo"], "todo");
     renderColumn(els["body-doing"], els["count-doing"], "doing");
     renderColumn(els["body-done"], els["count-done"], "done");
+  }
+
+  // The corner dock (js/hairline-glance.js) holds the four newest To do tasks
+  // the column shows, so the project filter and search apply to it too. It is
+  // told only when that set changes: a re-render that moves nothing must not
+  // replay a note. null until the first render, which lands without motion.
+  let glanceRows = null, glanceNewest = null;
+
+  function renderGlance() {
+    const dock = els["glance-dock"];
+    dock.hidden = state.view !== "board";
+    const todo = visibleTasks()
+      .filter((t) => t.status === "todo")
+      .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+    const rows = todo.slice(-4).map((t) => t.id);
+    if (glanceRows && rows.join(" ") === glanceRows.join(" ")) return;
+    const newest = todo[todo.length - 1] || null;
+    // A fifth task leaves the row count at four, so the figure is told to
+    // replay the last row; only a newer task does that, not a filter change.
+    const replay = !!(glanceNewest && newest && newest.createdAt > glanceNewest.createdAt);
+    const instant = glanceRows === null;
+    glanceRows = rows;
+    glanceNewest = newest;
+    dock.dataset.count = String(todo.length);
+    dock.dispatchEvent(new CustomEvent("docket:todos", { detail: { count: todo.length, replay, instant } }));
   }
 
   function renderTelemetry() {
@@ -746,6 +771,7 @@
     renderNotifBanner();
     renderTelemetry();
     renderSearchState();
+    renderGlance();
     if (state.view === "board") renderBoard();
     else if (state.view === "agenda") renderAgenda();
     else renderArchive();
@@ -1632,6 +1658,10 @@
     wireDbModal();
     wireDataControls();
     wireNotifications();
+    // A press on a filled row of the corner dock opens that task.
+    els["glance-dock"].addEventListener("docket:open", (e) => {
+      if (glanceRows && glanceRows[e.detail]) openCardModal(glanceRows[e.detail]);
+    });
 
     render();
     Reminders.rescheduleAll(state.data.tasks);

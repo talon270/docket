@@ -5,7 +5,7 @@
 
 // Bump on every shell change — an old cache would keep serving stale CSS/JS
 // to anyone who already loaded the site.
-const CACHE = "docket-shell-v15";
+const CACHE = "docket-shell-v16";
 const SHELL = [
   "./",
   "./index.html",
@@ -14,6 +14,7 @@ const SHELL = [
   "./vendor/hairline-kernel.js",
   "./js/hairline-host.js",
   "./js/hairline-pegboard.js",
+  "./js/hairline-glance.js",
   "./vendor/sync.js",
   "./js/turso.js",
   "./js/schema.js",

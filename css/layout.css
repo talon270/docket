@@ -1182,3 +1182,27 @@
   position: absolute; top: 2px; right: 4px; pointer-events: none;
   font: 0.6rem/1 var(--font-micro); letter-spacing: 0.08em; color: var(--fg-dim);
 }
+
+/* Corner dock (js/hairline-glance.js): the four newest To do tasks as notes
+   on a board, and the mini board that sees each new one. Fixed, so it stays
+   on screen while the page scrolls; every column on the board gets its
+   height as bottom padding, so the last card can always scroll clear of it.
+   Hidden on the one-column phone board, where a fixed corner would cover
+   half the screen. Stroke tokens as .empty-figure. */
+.glance-dock {
+  position: fixed; right: 1rem; bottom: 1rem; z-index: var(--z-popover);
+  width: 220px; aspect-ratio: 5 / 4;
+  background: var(--bg); border: 1px solid var(--border-hair);
+  --hairline-plate: var(--bg); --hairline-hi: var(--accent); --hairline-edge: var(--fg-dim);
+  --hairline-mid: var(--fg-ghost); --hairline-lo: var(--border-hair);
+}
+.glance-dock[hidden] { display: none; }
+.glance-dock .hl-read {
+  position: absolute; top: 6px; right: 8px; pointer-events: none;
+  font: 0.6rem/1 var(--font-micro); letter-spacing: 0.08em; color: var(--fg-dim);
+}
+.board .column-body { padding-bottom: calc(176px + 2rem); }
+@media (max-width: 860px) {
+  .glance-dock { display: none; }
+  .board .column-body { padding-bottom: 2rem; }
+}

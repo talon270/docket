@@ -25,6 +25,20 @@ opens, so there's nothing to cancel, and a reflexive Esc after setting a due
 date shouldn't cost you the date. Closing without changing anything writes
 nothing.
 
+## The corner board
+
+The small drawing in the bottom-right corner of the Board view is a second,
+always-visible look at your To do column. **Every note on it is a real task**
+— the four newest To do tasks the column is showing, oldest at the top. Add a
+task and a note peels off the pad onto the next row; the mini board beside it
+fills the same row a moment later and lights it. Point at a row to see which
+one it is; click a filled row to open that task.
+
+**It counts to four.** With seven tasks in To do it shows the newest four, and
+a new task replays the last row rather than adding a fifth. The column
+header's count is the real number. It follows the project tab and the search,
+like the column does, and it isn't shown on a phone-width screen.
+
 ## Moving a task
 
 Three ways, whichever suits:
