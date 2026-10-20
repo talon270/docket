@@ -72,7 +72,7 @@
   display: flex;
   align-items: center;
   gap: 1.35rem;
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
   color: var(--fg-dim);
   text-transform: uppercase;
@@ -143,7 +143,7 @@
   align-items: center;
   justify-content: center;
   font-family: var(--font-macro);
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   flex: none;
 }
 
@@ -189,7 +189,7 @@
 #new-project-btn:hover { background: var(--accent-fill); color: #fff; }
 
 .swatch { width: 12px; height: 12px; display: inline-block; }
-.btn-icon { font-size: 0.58rem; padding: 0.22rem 0.45rem; }
+.btn-icon { font-size: 0.7rem; padding: 0.22rem 0.45rem; }
 
 /* ---- status line: sync + banners, all on one thin rail ---------------- */
 
@@ -207,7 +207,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.35rem clamp(1rem, 3vw, 2.25rem);
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   letter-spacing: 0.12em;
   color: var(--fg-dim);
   border-right: 1px solid var(--border-hair);
@@ -254,8 +254,9 @@
   gap: 0.75rem;
   flex: 1;
   min-width: 300px;
+  flex-wrap: wrap;   /* at 0.7rem the two nowrap buttons outgrew a 390px phone; let them drop a line */
   padding: 0.3rem clamp(1rem, 3vw, 2.25rem) 0.3rem 0.9rem;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   letter-spacing: 0.09em;
   color: var(--fg-dim);
   border-left: 1px solid var(--border-hair);
@@ -264,8 +265,9 @@
 .banner button {
   border-color: var(--border-hair);
   padding: 0.24rem 0.6rem;
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   white-space: nowrap;
+  min-height: 24px;   /* WCAG 2.2 target floor; the padding alone gave 22px */
 }
 
 /* Only a genuine problem earns the hazard treatment */
@@ -306,7 +308,7 @@
 .quick-add input::placeholder { color: var(--fg-dim); letter-spacing: 0.04em; font-size: 0.8rem; }
 .quick-add input:focus { outline: none; }
 .quick-add-hint {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   color: var(--fg-dim);
   border: 1px solid var(--border-hair);
   padding: 0.15rem 0.45rem;
@@ -395,7 +397,7 @@
 .empty-state small {
   display: block;
   font-family: var(--font-micro);
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   letter-spacing: 0.12em;
   margin-top: 0.7rem;
   color: var(--fg-dim);
@@ -485,7 +487,7 @@
   display: flex;
   gap: 0.8rem;
   flex-wrap: wrap;
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   letter-spacing: 0.08em;
   color: var(--fg-dim);
   text-transform: uppercase;
@@ -549,14 +551,14 @@
   font-variant-numeric: tabular-nums;
 }
 .rail-figure span {
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   letter-spacing: 0.12em;
   color: var(--fg-dim);
   text-transform: uppercase;
 }
 .rail-figure em {
   font-style: normal;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   color: var(--fg-dim);
   letter-spacing: 0.04em;
 }
@@ -587,7 +589,7 @@
 .rail-bar i { display: block; height: 100%; }
 
 .rail-empty {
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   color: var(--fg-dim);
   letter-spacing: 0.08em;
   line-height: 1.6;
@@ -607,7 +609,7 @@
 .archive-week em {
   font-family: var(--font-micro);
   font-style: normal;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   letter-spacing: 0.12em;
   color: var(--fg-dim);
 }
@@ -628,7 +630,7 @@
 .archive-title { color: var(--fg-dim); }
 .archive-row:hover .archive-title { color: var(--fg); }
 .btn-restore {
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   padding: 0.28rem 0.65rem;
   border-color: var(--border-hair);
   flex: none;
@@ -690,7 +692,7 @@
   display: flex;
   flex-direction: column;
   gap: 0.35rem;
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   letter-spacing: 0.12em;
   color: var(--fg-dim);
   text-transform: uppercase;
@@ -718,7 +720,7 @@
 
 .btn-secondary {
   align-self: flex-start;
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   padding: 0.35rem 0.7rem;
   margin-top: 0.5rem;
   border-color: var(--border-hair);
@@ -730,13 +732,13 @@
   padding-top: 0.85rem;
   border-top: 2px solid var(--border);
 }
-.btn-danger { border-color: var(--accent); color: var(--accent); padding: 0.5rem 0.9rem; font-size: 0.62rem; }
+.btn-danger { border-color: var(--accent); color: var(--accent); padding: 0.5rem 0.9rem; font-size: 0.7rem; }
 .btn-danger:hover { background: var(--accent-fill); color: #fff; }
 .btn-primary {
   background: var(--fg);
   color: var(--bg);
   padding: 0.5rem 1.3rem;
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   font-weight: 700;
 }
 .btn-primary:hover { background: var(--accent-fill); border-color: var(--accent-fill); color: #fff; }
@@ -779,7 +781,7 @@
 }
 
 .modal-error {
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   color: var(--accent);
   border-left: 3px solid var(--accent);
   padding-left: 0.6rem;
@@ -806,7 +808,7 @@
 .project-row .project-name { font-size: 0.78rem; }
 .project-row .project-desc {
   display: block;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   color: var(--fg-dim);
   margin-top: 0.15rem;
 }
@@ -824,7 +826,7 @@
   border: 2px solid var(--border);
   box-shadow: 6px 6px 0 var(--shadow-hard);
   padding: 0.8rem 1.2rem;
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
   max-width: 380px;
   animation: toast-in 200ms ease-out both;
@@ -874,7 +876,7 @@
   min-width: 0;
 }
 #search-input:focus { outline: none; }
-#search-input::placeholder { color: var(--fg-dim); letter-spacing: 0.1em; font-size: 0.6rem; }
+#search-input::placeholder { color: var(--fg-dim); letter-spacing: 0.1em; font-size: 0.7rem; }
 #search-input::-webkit-search-cancel-button { display: none; }
 .search-count {
   font-size: 0.56rem;
@@ -955,13 +957,13 @@
 .agenda-swatch { width: 10px; height: 10px; flex: none; }
 .agenda-title { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .agenda-meta {
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--fg-dim);
 }
 .agenda-when {
-  font-size: 0.62rem;
+  font-size: 0.7rem;
   letter-spacing: 0.06em;
   color: var(--fg-dim);
   white-space: nowrap;
@@ -988,7 +990,7 @@
 
 /* Match the modal's other field labels, which are uppercase */
 .modal-seg-field > span {
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   letter-spacing: 0.12em;
 }
 .modal-seg-field .seg { align-self: flex-start; }
@@ -1001,7 +1003,7 @@
 }
 
 .field-note {
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   line-height: 1.5;
   letter-spacing: 0.04em;
   color: var(--fg-dim);
@@ -1016,7 +1018,7 @@
   background: transparent;
   color: var(--bg);
   padding: 0.28rem 0.7rem;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   font-weight: 700;
   flex: none;
 }
@@ -1060,7 +1062,7 @@
 }
 
 .tour-eyebrow {
-  font-size: 0.58rem;
+  font-size: 0.7rem;
   letter-spacing: 0.14em;
   color: var(--accent);
   margin-bottom: 0.55rem;
@@ -1094,7 +1096,7 @@
 .tour-skip {
   border: none;
   padding: 0.3rem 0;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
   color: var(--fg-dim);
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -1104,7 +1106,7 @@
 .tour-nav { display: flex; gap: 0.5rem; }
 .tour-nav button {
   padding: 0.4rem 0.8rem;
-  font-size: 0.6rem;
+  font-size: 0.7rem;
 }
 #tour-back:disabled { opacity: 0.35; cursor: default; }
 #tour-back:disabled:hover { background: transparent; color: var(--fg); }
